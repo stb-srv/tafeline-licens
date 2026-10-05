@@ -179,7 +179,7 @@ router.post(
             req.admin.username
         );
 
-        const portalUrl = (process.env.PORTAL_URL || 'https://licens-prod.stb-srv.de').replace(
+        const portalUrl = (process.env.PORTAL_URL || 'https://licens.stb-srv.de').replace(
             /\/$/,
             ''
         );

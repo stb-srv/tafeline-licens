@@ -50,8 +50,8 @@ echo "  Den Admin-Account richtest du danach im Browser ein."
 echo ""
 
 # ── Konfigurations-Variablen ──────────────────────────────────────────────────
-APP_DIR="/opt/meraki-licens"
-APP_USER="meraki-licens"
+APP_DIR="/opt/tafeline-licens"
+APP_USER="tafeline-licens"
 NODE_VERSION="20"
 
 # ── Interaktive Eingabe ───────────────────────────────────────────────────────

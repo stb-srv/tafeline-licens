@@ -733,7 +733,7 @@ router.post(
             ]
         );
 
-        const portalUrl = (process.env.PORTAL_URL || 'https://licens-prod.stb-srv.de').replace(
+        const portalUrl = (process.env.PORTAL_URL || 'https://licens.stb-srv.de').replace(
             /\/$/,
             ''
         );
@@ -803,7 +803,7 @@ router.post(
                 expires,
                 customer.id,
             ]);
-            const portalUrl = (process.env.PORTAL_URL || 'https://licens-prod.stb-srv.de').replace(
+            const portalUrl = (process.env.PORTAL_URL || 'https://licens.stb-srv.de').replace(
                 /\/$/,
                 ''
             );

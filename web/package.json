@@ -1,5 +1,5 @@
 {
-  "name": "meraki-licens-web",
+  "name": "tafeline-licens-web",
   "version": "1.0.0",
   "description": "Astro frontend for the Tafeline License Server",
   "type": "module",

@@ -15,7 +15,7 @@ Zentraler REST-API-Lizenzserver für das [Tafeline Restaurant-Management-System 
 
 ```bash
 git clone https://github.com/stb-srv/tafeline-licens
-cd meraki-licens
+cd tafeline-licens
 bash setup.sh
 ```
 
@@ -25,7 +25,7 @@ Das Script installiert Node.js, nginx und richtet den systemd-Service ein. Es fr
 
 ```bash
 git clone https://github.com/stb-srv/tafeline-licens
-cd meraki-licens
+cd tafeline-licens
 npm install
 npm start
 ```

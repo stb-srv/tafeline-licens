@@ -36,7 +36,7 @@ async function sendWithRetry(url, secret, body, event) {
                 ? crypto.createHmac('sha256', secret).update(body).digest('hex')
                 : null;
             const headers = { 'Content-Type': 'application/json' };
-            if (sig) headers['X-MERAKI-Signature'] = sig;
+            if (sig) headers['X-TAFELINE-Signature'] = sig;
             const response = await fetch(url, {
                 method: 'POST',
                 headers,
@@ -99,7 +99,7 @@ export async function retryDeadLetter(id) {
             ? crypto.createHmac('sha256', secret).update(dl.payload).digest('hex')
             : null;
         const headers = { 'Content-Type': 'application/json' };
-        if (sig) headers['X-MERAKI-Signature'] = sig;
+        if (sig) headers['X-TAFELINE-Signature'] = sig;
         const response = await fetch(dl.webhook_url, {
             method: 'POST',
             headers,

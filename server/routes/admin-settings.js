@@ -460,9 +460,9 @@ router.get('/webhooks/signing-info', requireAuth, (req, res) => {
     res.json({
         success: true,
         algorithm: 'HMAC-SHA256',
-        header: 'X-MERAKI-Signature',
+        header: 'X-TAFELINE-Signature',
         description:
-            'Jeder Webhook-Request enthält den Header "X-MERAKI-Signature" (wenn ein Secret konfiguriert ist).',
+            'Jeder Webhook-Request enthält den Header "X-TAFELINE-Signature" (wenn ein Secret konfiguriert ist).',
     });
 });
 

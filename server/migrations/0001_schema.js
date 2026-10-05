@@ -276,7 +276,7 @@ export function up(db) {
     if (existing.n === 0) {
         db.prepare(
             `INSERT INTO invoice_settings (id, company_name, company_address, invoice_prefix, next_number)
-             VALUES (1, 'Meraki', 'Main Street 42, 10115 Berlin', 'INV', 1)`
+             VALUES (1, 'Tafeline', 'Main Street 42, 10115 Berlin', 'INV', 1)`
         ).run();
     }
 
