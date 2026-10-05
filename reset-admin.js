@@ -27,7 +27,7 @@ const ask = (q) => new Promise((r) => rl.question(q, r));
 async function main() {
     const admins = db.prepare('SELECT username, role FROM admins ORDER BY role DESC').all();
 
-    console.log('\n  Meraki – Admin Passwort Reset\n');
+    console.log('\n  Tafeline – Admin Passwort Reset\n');
 
     if (admins.length === 0) {
         console.log('  Keine Admin-Accounts gefunden. Erstelle neuen Superadmin.\n');

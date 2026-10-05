@@ -1,7 +1,7 @@
 {
   "name": "meraki-licens-web",
   "version": "1.0.0",
-  "description": "Astro frontend for the Meraki License Server",
+  "description": "Astro frontend for the Tafeline License Server",
   "type": "module",
   "private": true,
   "scripts": {

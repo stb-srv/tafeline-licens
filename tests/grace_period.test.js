@@ -4,7 +4,7 @@ import db from '../server/db.js';
 import { jest } from '@jest/globals';
 
 const mockLicense = (overrides = {}) => ({
-    license_key: 'MERAKI-TEST-GRACE',
+    license_key: 'TAFELINE-TEST-GRACE',
     type: 'PRO',
     status: 'active',
     customer_name: 'Test GmbH',
@@ -46,7 +46,7 @@ describe('WP1 – Grace-Period / Soft-Expiry', () => {
         mockQuery(ACTIVE_LICENSE);
         const res = await request(app)
             .post('/api/v1/validate')
-            .send({ license_key: 'MERAKI-TEST-GRACE', domain: 'test.example.com' });
+            .send({ license_key: 'TAFELINE-TEST-GRACE', domain: 'test.example.com' });
         expect(res.statusCode).toBe(200);
         expect(res.body.status).toBe('active');
         expect(res.body.grace_until).toBeUndefined();
@@ -56,7 +56,7 @@ describe('WP1 – Grace-Period / Soft-Expiry', () => {
         mockQuery(GRACE_LICENSE);
         const res = await request(app)
             .post('/api/v1/validate')
-            .send({ license_key: 'MERAKI-TEST-GRACE', domain: 'test.example.com' });
+            .send({ license_key: 'TAFELINE-TEST-GRACE', domain: 'test.example.com' });
         expect(res.statusCode).toBe(200);
         expect(res.body.status).toBe('grace');
         expect(res.body.grace_until).toBeDefined();
@@ -66,7 +66,7 @@ describe('WP1 – Grace-Period / Soft-Expiry', () => {
         mockQuery(ZERO_GRACE);
         const res = await request(app)
             .post('/api/v1/validate')
-            .send({ license_key: 'MERAKI-TEST-GRACE', domain: 'test.example.com' });
+            .send({ license_key: 'TAFELINE-TEST-GRACE', domain: 'test.example.com' });
         expect(res.statusCode).toBe(403);
         expect(res.body.status).toBe('expired');
     });
@@ -75,7 +75,7 @@ describe('WP1 – Grace-Period / Soft-Expiry', () => {
         mockQuery(EXPIRED_LICENSE);
         const res = await request(app)
             .post('/api/v1/validate')
-            .send({ license_key: 'MERAKI-TEST-GRACE', domain: 'test.example.com' });
+            .send({ license_key: 'TAFELINE-TEST-GRACE', domain: 'test.example.com' });
         expect(res.statusCode).toBe(403);
         expect(res.body.status).toBe('expired');
     });
@@ -84,7 +84,7 @@ describe('WP1 – Grace-Period / Soft-Expiry', () => {
         mockQuery(GRACE_LICENSE);
         const res = await request(app)
             .post('/api/v1/refresh')
-            .send({ license_key: 'MERAKI-TEST-GRACE' });
+            .send({ license_key: 'TAFELINE-TEST-GRACE' });
         expect(res.statusCode).toBe(200);
         expect(res.body.status).toBe('grace');
         expect(res.body.grace_until).toBeDefined();
@@ -94,7 +94,7 @@ describe('WP1 – Grace-Period / Soft-Expiry', () => {
         mockQuery(EXPIRED_LICENSE);
         const res = await request(app)
             .post('/api/v1/refresh')
-            .send({ license_key: 'MERAKI-TEST-GRACE' });
+            .send({ license_key: 'TAFELINE-TEST-GRACE' });
         expect(res.statusCode).toBe(403);
         expect(res.body.status).toBe('expired');
     });

@@ -4,12 +4,12 @@ import db from './db.js';
 export const generateKey = (type) => {
     const prefix =
         {
-            FREE: 'MERAKI-FREE',
-            STARTER: 'MERAKI-START',
-            PRO: 'MERAKI-PRO',
-            PRO_PLUS: 'MERAKI-PROPLUS',
-            ENTERPRISE: 'MERAKI-ENT',
-        }[type] || 'MERAKI-UNKNOWN';
+            FREE: 'TAFELINE-FREE',
+            STARTER: 'TAFELINE-START',
+            PRO: 'TAFELINE-PRO',
+            PRO_PLUS: 'TAFELINE-PROPLUS',
+            ENTERPRISE: 'TAFELINE-ENT',
+        }[type] || 'TAFELINE-UNKNOWN';
     const rand = crypto.randomBytes(4).toString('hex').toUpperCase();
     return `${prefix}-${rand}-${new Date().getFullYear()}`;
 };

@@ -1,11 +1,11 @@
-# Meraki License Server
+# Tafeline License Server
 
 ![Node.js](https://img.shields.io/badge/Node.js-%3E%3D%2018-339933?logo=node.js&logoColor=white)
 ![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![Status](https://img.shields.io/badge/Status-Production-success)
 
-Zentraler REST-API-Lizenzserver für das [Meraki Restaurant-Management-System (CMS)](https://github.com/stb-srv/OPA-Sanatori). Verwaltet, validiert und überwacht Lizenzen für registrierte CMS-Instanzen – mit signierten kryptografischen Tokens für sichere Echtzeit-Validierungen und zeitlich begrenzte Offline-Freischaltungen.
+Zentraler REST-API-Lizenzserver für das [Tafeline Restaurant-Management-System (CMS)](https://github.com/stb-srv/OPA-Sanatori). Verwaltet, validiert und überwacht Lizenzen für registrierte CMS-Instanzen – mit signierten kryptografischen Tokens für sichere Echtzeit-Validierungen und zeitlich begrenzte Offline-Freischaltungen.
 
 ---
 
@@ -34,7 +34,7 @@ npm start
 
 ```
   ╔══════════════════════════════════════════════════════╗
-  ║   Meraki License Server – Ersteinrichtung           ║
+  ║   Tafeline License Server – Ersteinrichtung           ║
   ╚══════════════════════════════════════════════════════╝
 
   ✓  .env erstellt – alle Secrets automatisch generiert

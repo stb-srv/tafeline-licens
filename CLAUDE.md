@@ -37,7 +37,7 @@ openssl rand -hex 48
 
 ## Architecture
 
-**Meraki License Server** — Node.js (ES Modules) REST API for managing restaurant-CMS licenses. Runs standalone behind nginx/PM2, typically on port 4000.
+**Tafeline License Server** — Node.js (ES Modules) REST API for managing restaurant-CMS licenses. Runs standalone behind nginx/PM2, typically on port 4000.
 
 ### Entry point: `server.js`
 

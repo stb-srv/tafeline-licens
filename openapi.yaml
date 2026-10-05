@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Meraki License Server API
+  title: Tafeline License Server API
   version: 1.0.0
   description: |
     REST API for managing restaurant-CMS licenses.
@@ -92,7 +92,7 @@ paths:
               type: object
               required: [license_key]
               properties:
-                license_key: { type: string, example: MERAKI-PRO-ABCD-1234 }
+                license_key: { type: string, example: TAFELINE-PRO-ABCD-1234 }
                 domain: { type: string, example: restaurant.example.com }
       responses:
         '200':

@@ -266,7 +266,7 @@ app.get('/openapi.yaml', (req, res) => {
 app.get('/docs', (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(`<!DOCTYPE html><html lang="en"><head>
-<meta charset="UTF-8"><title>Meraki License Server – API Docs</title>
+<meta charset="UTF-8"><title>Tafeline License Server – API Docs</title>
 <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
 </head><body>
 <div id="swagger-ui"></div>
@@ -317,7 +317,7 @@ if (process.env.NODE_ENV !== 'test') {
 // ── Start ────────────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
-        console.log(`\n🏛️  Meraki License Server v2.1 läuft auf http://localhost:${PORT}`);
+        console.log(`\n🏛️  Tafeline License Server v2.1 läuft auf http://localhost:${PORT}`);
         console.log(`📋  Pläne: ${Object.keys(PLAN_DEFINITIONS).join(' | ')}`);
         console.log(
             `🌐  CORS: ${staticAllowedOrigins.length > 0 ? staticAllowedOrigins.join(', ') + ' + dynamisch aus DB' : 'nur dynamisch aus DB (CORS_ORIGINS nicht gesetzt)'}`

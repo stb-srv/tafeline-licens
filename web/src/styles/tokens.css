@@ -1,5 +1,5 @@
 /*
- * Design tokens — single source of truth for the Meraki License Server frontend.
+ * Design tokens — single source of truth for the Tafeline License Server frontend.
  * Extracted verbatim from public/index.html (lines 16-94) so the visual result
  * is identical. Light is the default (:root); dark overrides via [data-theme='dark'].
  * Edit colors / spacing / radii HERE only — never copy back into individual pages.
