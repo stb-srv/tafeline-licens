@@ -14,7 +14,7 @@ Zentraler REST-API-Lizenzserver für das [Tafeline Restaurant-Management-System 
 ### Einzeiler-Setup auf Ubuntu/Debian
 
 ```bash
-git clone https://github.com/stb-srv/meraki-licens
+git clone https://github.com/stb-srv/tafeline-licens
 cd meraki-licens
 bash setup.sh
 ```
@@ -24,7 +24,7 @@ Das Script installiert Node.js, nginx und richtet den systemd-Service ein. Es fr
 ### Lokal / ohne setup.sh
 
 ```bash
-git clone https://github.com/stb-srv/meraki-licens
+git clone https://github.com/stb-srv/tafeline-licens
 cd meraki-licens
 npm install
 npm start

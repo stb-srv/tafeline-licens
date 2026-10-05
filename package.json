@@ -22,7 +22,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@meraki/plans": "github:stb-srv/meraki-plans",
+    "@tafeline/plans": "github:stb-srv/tafeline-plans",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.10.0",
     "cors": "^2.8.5",

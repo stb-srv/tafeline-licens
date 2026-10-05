@@ -71,7 +71,7 @@ Admin sessions are tracked in the `admin_sessions` DB table (token hash, revocat
 
 ### Key modules
 
-- **`server/plans.js`** — Re-exports `PLAN_DEFINITIONS` and `PLAN_MODULES` from `@meraki/plans` (`../meraki-plans/`). **Nie** Pläne hier direkt definieren — immer im shared Package `meraki-plans/index.js` bearbeiten, damit CMS und Lizenzserver synchron bleiben.
+- **`server/plans.js`** — Re-exports `PLAN_DEFINITIONS` and `PLAN_MODULES` from `@tafeline/plans` (`../tafeline-plans/`). **Nie** Pläne hier direkt definieren — immer im shared Package `tafeline-plans/index.js` bearbeiten, damit CMS und Lizenzserver synchron bleiben.
 - **`server/db-schema.js`** — Canonical DB field types (`DB_SCHEMA.FIELDS.*`, `DB_SCHEMA.PK.*`). Always import and use these in migrations instead of hardcoding type strings.
 - **`server/invoiceHelper.js`** — Invoice creation logic, number sequences, PDF triggering. Functions are synchronous.
 - **`server/pdfGenerator.js`** — `pdfkit`-based PDF generation; PDFs saved under `STORAGE_PATH/invoices/`.
