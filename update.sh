@@ -27,7 +27,7 @@ NC="\033[0m"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="$PROJECT_DIR/backups"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-PM2_APP_NAME="meraki-licens"
+PM2_APP_NAME="tafeline-licens"
 SYSTEMD_SERVICE="licens-srv"
 
 echo ""

@@ -158,7 +158,7 @@ export function up(db) {
         [
             'faq-3',
             'Wie funktioniert die Lizenz-Aktivierung?',
-            'Nach der Bestellung erhältst du eine Rechnung per E-Mail. Sobald die Zahlung eingegangen ist, wird deine Lizenz von uns aktiviert – du siehst den Status direkt im Kunden-Portal. Der Lizenz-Key muss anschließend in deiner Meraki Installation hinterlegt werden.',
+            'Nach der Bestellung erhältst du eine Rechnung per E-Mail. Sobald die Zahlung eingegangen ist, wird deine Lizenz von uns aktiviert – du siehst den Status direkt im Kunden-Portal. Der Lizenz-Key muss anschließend in deiner Tafeline Installation hinterlegt werden.',
             'Lizenz & Pläne',
             2,
         ],
