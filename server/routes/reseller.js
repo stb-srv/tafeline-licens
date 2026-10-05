@@ -51,7 +51,7 @@ router.post(
 
         const plan = PLAN_DEFINITIONS['TRIAL'];
         const key =
-            'MERAKI-' +
+            'TAFELINE-' +
             crypto.randomBytes(6).toString('hex').toUpperCase().match(/.{4}/g).join('-');
         const expiresAt = toDbDate(new Date(Date.now() + plan.expires_days * 24 * 60 * 60 * 1000));
         const notes = JSON.stringify({

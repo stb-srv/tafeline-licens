@@ -53,7 +53,7 @@ function buildPDFLayout(invoiceData, doc) {
 
     // --- SENDER INFO (Top Left) ---
     doc.fillColor(primaryColor).fontSize(14).font('Helvetica-Bold');
-    doc.text(safeText(invoiceData.company_name) || 'Meraki', 50, 50);
+    doc.text(safeText(invoiceData.company_name) || 'Tafeline', 50, 50);
 
     doc.fillColor(textColor).fontSize(8.5).font('Helvetica');
     const addressLines = safeText(invoiceData.company_address, 500).split('\n').filter(Boolean);
@@ -208,7 +208,7 @@ function buildPDFLayout(invoiceData, doc) {
     doc.fillColor(textColor).fontSize(footerTextSize).font('Helvetica');
 
     // Column 1: Company details
-    doc.text(safeText(invoiceData.company_name) || 'Meraki', 50, footerY + 10, { width: colWidth });
+    doc.text(safeText(invoiceData.company_name) || 'Tafeline', 50, footerY + 10, { width: colWidth });
     if (invoiceData.company_tax_id) {
         doc.text(
             `Steuernummer / USt-IdNr.: ${safeText(invoiceData.company_tax_id)}`,
@@ -236,7 +236,7 @@ function buildPDFLayout(invoiceData, doc) {
 
     // Column 3: Custom footer text or generic message
     const defaultFooterText =
-        'Vielen Dank für Ihre Bestellung und das Vertrauen in Meraki Restaurant-Management-System.';
+        'Vielen Dank für Ihre Bestellung und das Vertrauen in Tafeline Restaurant-Management-System.';
     doc.fillColor(lightGray)
         .fontSize(6.5)
         .text(safeText(invoiceData.footer_text, 500) || defaultFooterText, 390, footerY + 10, {

@@ -59,7 +59,7 @@ function genRsa() {
 }
 
 function buildFreshEnv(vals, port) {
-    return `# Meraki License Server – Konfiguration
+    return `# Tafeline License Server – Konfiguration
 # Automatisch generiert am ${new Date().toISOString().slice(0, 19).replace('T', ' ')}
 
 PORT=${port}
@@ -144,7 +144,7 @@ const finalPort = finalEnv.PORT || '4000';
 
 console.log('');
 console.log(B(C('  ╔══════════════════════════════════════════════════════╗')));
-console.log(B(C('  ║   Meraki License Server – Ersteinrichtung           ║')));
+console.log(B(C('  ║   Tafeline License Server – Ersteinrichtung           ║')));
 console.log(B(C('  ╚══════════════════════════════════════════════════════╝')));
 console.log('');
 

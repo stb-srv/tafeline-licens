@@ -290,7 +290,7 @@ describe('Customer Portal API', () => {
             }
             if (sql.includes('FROM licenses WHERE license_key')) {
                 return [
-                    [{ license_key: 'MERAKI-PRO-TEST-2026', customer_id: 'cust1', type: 'PRO' }],
+                    [{ license_key: 'TAFELINE-PRO-TEST-2026', customer_id: 'cust1', type: 'PRO' }],
                 ];
             }
             if (sql.includes('plan_pricing')) return [[{ price: 59, tax_rate: 19 }]];

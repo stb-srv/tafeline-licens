@@ -40,7 +40,7 @@ run_privileged() { $SUDO "$@"; }
 clear
 echo -e "${BOLD}${CYAN}"
 echo "  ╔═══════════════════════════════════════════════════════╗"
-echo "  ║         Meraki License Server – Setup                 ║"
+echo "  ║         Tafeline License Server – Setup                 ║"
 echo "  ╚═══════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 echo "  Dieses Script installiert und konfiguriert den Server"
@@ -203,7 +203,7 @@ ok "Secrets generiert (RSA 2048, AES-256)"
 step ".env Konfigurationsdatei"
 
 run_privileged bash -c "cat > '${APP_DIR}/.env'" <<EOF
-# Meraki License Server – Konfiguration
+# Tafeline License Server – Konfiguration
 # Generiert am $(date '+%Y-%m-%d %H:%M:%S')
 
 PORT=${APP_PORT}
@@ -270,7 +270,7 @@ fi
 
 run_privileged bash -c "cat > /etc/systemd/system/licens-srv.service" <<EOF
 [Unit]
-Description=Meraki License Server
+Description=Tafeline License Server
 Documentation=https://github.com/stb-srv/meraki-licens
 After=network.target
 Wants=network-online.target
@@ -390,7 +390,7 @@ done
 # ── Abschluss ─────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}${GREEN}╔═══════════════════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}${GREEN}║       Meraki License Server – Installation fertig!    ║${NC}"
+echo -e "${BOLD}${GREEN}║       Tafeline License Server – Installation fertig!    ║${NC}"
 echo -e "${BOLD}${GREEN}╚═══════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "  ${BOLD}${CYAN}▶  Jetzt Setup im Browser abschließen:${NC}"

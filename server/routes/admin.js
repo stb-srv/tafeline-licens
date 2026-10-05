@@ -156,7 +156,7 @@ router.post(
             ]);
         }
 
-        const otpauth = authenticator.keyuri(req.admin.username, 'Meraki License', secret);
+        const otpauth = authenticator.keyuri(req.admin.username, 'Tafeline License', secret);
         const qrCodeUrl = await QRCode.toDataURL(otpauth);
 
         res.json({

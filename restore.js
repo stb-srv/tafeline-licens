@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Meraki License Server – Restore CLI
+ * Tafeline License Server – Restore CLI
  * Usage:  node restore.js              → lists available backups
  *         node restore.js <filename>   → restores that backup
  * IMPORTANT: Stop the server before restoring!

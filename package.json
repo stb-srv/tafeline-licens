@@ -1,7 +1,7 @@
 {
   "name": "grieche-license-server",
   "version": "2.1.1",
-  "description": "Central license management server for Meraki CMS",
+  "description": "Central license management server for Tafeline CMS",
   "main": "server.js",
   "type": "module",
   "engines": {

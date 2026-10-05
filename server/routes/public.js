@@ -151,7 +151,7 @@ router.post(
             });
         }
 
-        const key = `MERAKI-TRIAL-${crypto.randomBytes(4).toString('hex').toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+        const key = `TAFELINE-TRIAL-${crypto.randomBytes(4).toString('hex').toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
         const expiresAt = toDbDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
 
         const notes = JSON.stringify({
