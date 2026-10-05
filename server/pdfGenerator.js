@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LOGO_PATH = path.join(__dirname, '..', 'public', 'Meraki_RMS_CMS.png');
+const LOGO_PATH = path.join(__dirname, '..', 'public', 'tafeline_license.png');
 
 function safeText(val, maxLen = 300) {
     if (val == null) return '';
