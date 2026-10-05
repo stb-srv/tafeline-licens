@@ -271,7 +271,7 @@ fi
 run_privileged bash -c "cat > /etc/systemd/system/licens-srv.service" <<EOF
 [Unit]
 Description=Tafeline License Server
-Documentation=https://github.com/stb-srv/meraki-licens
+Documentation=https://github.com/stb-srv/tafeline-licens
 After=network.target
 Wants=network-online.target
 
