@@ -208,7 +208,9 @@ function buildPDFLayout(invoiceData, doc) {
     doc.fillColor(textColor).fontSize(footerTextSize).font('Helvetica');
 
     // Column 1: Company details
-    doc.text(safeText(invoiceData.company_name) || 'Tafeline', 50, footerY + 10, { width: colWidth });
+    doc.text(safeText(invoiceData.company_name) || 'Tafeline', 50, footerY + 10, {
+        width: colWidth,
+    });
     if (invoiceData.company_tax_id) {
         doc.text(
             `Steuernummer / USt-IdNr.: ${safeText(invoiceData.company_tax_id)}`,

@@ -15,6 +15,7 @@ const { authenticator } = otplibPkg;
 import QRCode from 'qrcode';
 
 import licensesRouter from './admin-licenses.js';
+import devicesResellersRouter from './admin-devices-resellers.js';
 import customersRouter from './admin-customers.js';
 import settingsRouter from './admin-settings.js';
 import statsRouter from './admin-stats.js';
@@ -23,6 +24,7 @@ import invoicesRouter from './admin-invoices.js';
 const router = Router();
 
 router.use(licensesRouter);
+router.use(devicesResellersRouter);
 router.use(customersRouter);
 router.use(settingsRouter);
 router.use(statsRouter);

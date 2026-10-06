@@ -2,7 +2,7 @@
 set -e
 
 # ============================================================
-#  OPA! Santorini — License Server Deploy Script v2.1
+#  Tafeline — License Server Deploy Script v2.1
 #  Ubuntu 22.04 / 24.04 / 25.04 | Als root oder mit sudo
 #  Nutzung: bash deploy.sh
 # ============================================================
@@ -16,12 +16,12 @@ NC='\033[0m'
 
 APP_DIR="/opt/licens-srv"
 APP_USER="licens-srv"
-GITHUB_REPO="stb-srv/licens-srv_OPA-Santorini"
+GITHUB_REPO="stb-srv/tafeline-licens"
 SERVICE_NAME="licens-srv"
 PORT=4000
 
 echo -e ""
-echo -e "${BOLD}${CYAN}🏛️  OPA! Santorini — License Server Deploy v2.1${NC}"
+echo -e "${BOLD}${CYAN}🏛️  Tafeline — License Server Deploy v2.1${NC}"
 echo -e "${CYAN}$(printf '═%.0s' {1..55})${NC}\n"
 
 # ── Root-Check ─────────────────────────────────────────────────────────
@@ -210,7 +210,7 @@ sudo -u "$APP_USER" node migrate.js
 echo -e "\n${BOLD}[7/8] Systemd Service einrichten...${NC}"
 cat > /etc/systemd/system/${SERVICE_NAME}.service <<EOF
 [Unit]
-Description=OPA! Santorini License Server
+Description=Tafeline License Server
 After=network.target
 
 [Service]

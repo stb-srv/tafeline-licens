@@ -3,7 +3,14 @@ import globals from 'globals';
 
 export default [
     {
-        ignores: ['node_modules/**', 'data/**', '**/*.min.js'],
+        ignores: [
+            'node_modules/**',
+            'web/node_modules/**',
+            'web/dist/**',
+            'web/.astro/**',
+            'data/**',
+            '**/*.min.js',
+        ],
     },
     js.configs.recommended,
     // Node.js ES modules
@@ -21,6 +28,16 @@ export default [
             'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
             'no-empty': ['error', { allowEmptyCatch: true }],
             'no-console': 'warn',
+        },
+    },
+    // Astro-Frontend (Browser)
+    {
+        files: ['web/src/**/*.js'],
+        languageOptions: {
+            globals: { ...globals.browser },
+        },
+        rules: {
+            'no-console': 'off',
         },
     },
     // Jest tests

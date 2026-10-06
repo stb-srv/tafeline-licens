@@ -7,6 +7,12 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Abhängigkeiten aktualisiert (Express 5, bcryptjs 3, express-rate-limit 8, dotenv, pdfkit, nodemailer, pino, Astro, ESLint 10); `npm audit` meldet 0 Schwachstellen.
+- ESLint-Konfiguration repariert (Browser-Globals für `web/src`), Code mit Prettier formatiert.
+- CI führt jetzt Lint, Format-Check, Tests, Audit und den Web-Build aus.
+
 ### Security
 
 - **SEC-03**: `SETUP_TOKEN` als Pflicht-Env-Variable für den Setup-Endpoint einführen
@@ -22,7 +28,6 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
   (aktuell DB-Query bei JEDEM Request – 5-Min-TTL-Map reduziert DB-Last drastisch).
 - **IMP-05**: Docker Compose für License-Server + MySQL geplant.
 - **IMP-06**: Trial-Lizenz-Registrierung beim License-Server oder Reset-Limit geplant.
-- **NTH-02**: GitHub Actions CI (Tests + Lint) geplant.
 - **NTH-04**: Formales Migrations-Tool (Knex o.ä.) geplant.
 - **NTH-05**: Webhook-Retry-Mechanismus geplant (aktuell nur 1 Versuch, 5s Timeout).
 
