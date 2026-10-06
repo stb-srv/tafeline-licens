@@ -30,7 +30,7 @@ router.get('/', (req, res) => {
     <html lang="de"><head>
         <meta charset="UTF-8">
         <meta http-equiv="refresh" content="60">
-        <title>OPA! Lizenz-Server – Status</title>
+        <title>Tafeline Lizenz-Server – Status</title>
         <style>
             body { font-family:sans-serif; max-width:600px; margin:60px auto; padding:0 24px; color:#111; background:#f3f4f6; }
             .card { background:#fff; padding:32px; border-radius:16px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); }
@@ -46,7 +46,7 @@ router.get('/', (req, res) => {
         </style>
     </head><body>
         <div class="card">
-            <h1>🟢 OPA! Lizenz-Server</h1>
+            <h1>🟢 Tafeline Lizenz-Server</h1>
             <span class="badge ${overallOk ? 'ok' : 'fail'}">${overallOk ? '✓ Alle Systeme operational' : '✗ Störung erkannt'}</span>
             ${Object.values(checks)
                 .map(

@@ -912,13 +912,11 @@ router.post(
                 return res.status(400).json({ success: false, message: 'Domain zu lang.' });
             const labels = domainClean.replace(/^\*\./, '').split('.');
             const labelRegex = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
-            if (
-                !(
-                    labels.length >= 2 &&
-                    labels.every((l) => labelRegex.test(l)) &&
-                    /^[a-z]{2,}$/.test(labels[labels.length - 1])
-                )
-            )
+            if (!(
+                labels.length >= 2 &&
+                labels.every((l) => labelRegex.test(l)) &&
+                /^[a-z]{2,}$/.test(labels[labels.length - 1])
+            ))
                 return res.status(400).json({ success: false, message: 'Ungültige Domain.' });
         }
 

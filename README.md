@@ -5,7 +5,7 @@
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![Status](https://img.shields.io/badge/Status-Production-success)
 
-Zentraler REST-API-Lizenzserver für das [Tafeline Restaurant-Management-System (CMS)](https://github.com/stb-srv/OPA-Sanatori). Verwaltet, validiert und überwacht Lizenzen für registrierte CMS-Instanzen – mit signierten kryptografischen Tokens für sichere Echtzeit-Validierungen und zeitlich begrenzte Offline-Freischaltungen.
+Zentraler REST-API-Lizenzserver für das [Tafeline Restaurant-Management-System (CMS)](https://github.com/stb-srv/tafeline-cms). Verwaltet, validiert und überwacht Lizenzen für registrierte CMS-Instanzen – mit signierten kryptografischen Tokens für sichere Echtzeit-Validierungen und zeitlich begrenzte Offline-Freischaltungen.
 
 ---
 
@@ -139,13 +139,13 @@ web/src/
 
 ### Zentrale Änderungen — einmal ändern, überall wirksam
 
-| Was ändern | Datei |
-|---|---|
-| Logo-Bild / Logo-Link | `web/src/components/Header.astro` |
-| Nav-Styling (Hintergrund, Höhe, Blur) | `web/src/styles/global.css` → `nav { }` |
-| Footer-Copyright / Standard-Links | `web/src/components/Footer.astro` |
-| Footer-Styling | `web/src/styles/global.css` → `footer { }` |
-| Farben, Spacing, Typografie | `web/src/styles/tokens.css` |
+| Was ändern                            | Datei                                      |
+| ------------------------------------- | ------------------------------------------ |
+| Logo-Bild / Logo-Link                 | `web/src/components/Header.astro`          |
+| Nav-Styling (Hintergrund, Höhe, Blur) | `web/src/styles/global.css` → `nav { }`    |
+| Footer-Copyright / Standard-Links     | `web/src/components/Footer.astro`          |
+| Footer-Styling                        | `web/src/styles/global.css` → `footer { }` |
+| Farben, Spacing, Typografie           | `web/src/styles/tokens.css`                |
 
 ### Neue Seite erstellen
 

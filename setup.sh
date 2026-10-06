@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  OPA-Santorini License Server – Setup Script
+#  Tafeline License Server – Setup Script
 #  Unterstützt: Ubuntu 22.04/24.04, Debian 12
 #  Läuft als root ODER als normaler User (sudo wird bei Bedarf verwendet)
 # =============================================================================

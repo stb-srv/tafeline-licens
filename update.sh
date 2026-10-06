@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# OPA! Santorini License Server — Auto-Update Script
+# Tafeline License Server — Auto-Update Script
 # ============================================================
 # Dieses Script:
 #  1. Erstellt ein Backup der db.json + .env (falls vorhanden)
@@ -31,7 +31,7 @@ PM2_APP_NAME="tafeline-licens"
 SYSTEMD_SERVICE="licens-srv"
 
 echo ""
-echo -e "${BOLD}${CYAN}🏛️  OPA! Santorini License Server — Update Script${NC}"
+echo -e "${BOLD}${CYAN}🏛️  Tafeline License Server — Update Script${NC}"
 echo -e "${CYAN}$(printf '═%.0s' {1..55})${NC}"
 echo -e "${CYAN}📁 Projektverzeichnis: $PROJECT_DIR${NC}"
 echo ""
@@ -150,7 +150,7 @@ fi
 
 echo ""
 echo -e "${CYAN}$(printf '═%.0s' {1..55})${NC}"
-echo -e "${GREEN}${BOLD}✅ Update abgeschlossen! OPA! Santorini License Server läuft.${NC}"
+echo -e "${GREEN}${BOLD}✅ Update abgeschlossen! Tafeline License Server läuft.${NC}"
 echo -e "${CYAN}   Backup in:  $BACKUP_DIR${NC}"
 echo -e "${CYAN}   Version:    ${NEW_SHA:0:7}${NC}"
 echo ""
