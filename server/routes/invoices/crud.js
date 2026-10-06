@@ -10,6 +10,7 @@ import {
 import crypto from 'crypto';
 import fs from 'fs';
 import { toDbDate } from './shared.js';
+import logger from '../../logger.js';
 
 const router = express.Router();
 
@@ -203,7 +204,7 @@ router.post(
             const newInvoice = getInvoiceWithItems(invoiceId);
             res.status(201).json(newInvoice);
         } catch (err) {
-            console.error('[admin/invoices/create] Error:', err);
+            logger.error({ err: err }, '[admin/invoices/create] Error:');
             res.status(500).json({
                 success: false,
                 message: `Fehler beim Erstellen der Rechnung: ${err.message}`,
@@ -280,7 +281,7 @@ router.put(
             );
             res.json(getInvoiceWithItems(invoiceId));
         } catch (err) {
-            console.error('[admin/invoices/update] Error:', err);
+            logger.error({ err: err }, '[admin/invoices/update] Error:');
             res.status(500).json({
                 success: false,
                 message: `Fehler beim Aktualisieren: ${err.message}`,
@@ -325,7 +326,7 @@ router.post(
             );
             res.json({ success: true, message: 'Rechnung erfolgreich als bezahlt markiert.' });
         } catch (err) {
-            console.error('[admin/invoices/mark-paid] Error:', err);
+            logger.error({ err: err }, '[admin/invoices/mark-paid] Error:');
             res.status(500).json({
                 success: false,
                 message: `Fehler beim Markieren als bezahlt: ${err.message}`,
@@ -358,7 +359,7 @@ router.delete(
             try {
                 fs.unlinkSync(invoice.pdf_path);
             } catch (err) {
-                console.warn('[admin/invoices/delete] Could not delete PDF file:', err.message);
+                logger.warn({ err: err }, '[admin/invoices/delete] Could not delete PDF file:');
             }
         }
         await addAuditLog(

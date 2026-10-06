@@ -7,6 +7,7 @@ import { fireWebhook } from '../webhook.js';
 import { generateKey, addAuditLog, normalizeDomain, parseJsonField } from '../helpers.js';
 import { requireAuth, asyncHandler, bulkLimiter } from '../middleware.js';
 import { createInvoiceFromLicense } from '../invoiceHelper.js';
+import logger from '../logger.js';
 
 const router = Router();
 
@@ -185,7 +186,7 @@ router.post(
                         });
                     }
                 } catch (mailErr) {
-                    console.error('[licenses] Lizenz-Mail fehlgeschlagen:', mailErr.message);
+                    logger.error({ err: mailErr }, '[licenses] Lizenz-Mail fehlgeschlagen:');
                 }
                 if (raw.type && raw.type !== 'FREE' && raw.type !== 'TRIAL') {
                     try {
@@ -193,7 +194,7 @@ router.post(
                             discount_pct: raw.discount_pct,
                         });
                     } catch (invErr) {
-                        console.error('[licenses] Auto-Rechnung fehlgeschlagen:', invErr.message);
+                        logger.error({ err: invErr }, '[licenses] Auto-Rechnung fehlgeschlagen:');
                     }
                 }
             }
@@ -211,7 +212,7 @@ router.post(
             const [newRows] = db.query('SELECT * FROM licenses WHERE license_key = ?', [key]);
             res.json({ success: true, license: normalizeLicense(newRows[0]) });
         } catch (e) {
-            console.error(e);
+            logger.error({ err: e }, 'Fehler');
             res.status(500).json({ success: false, message: 'Internal server error' });
         }
     })
@@ -273,7 +274,7 @@ router.patch(
                     reason: req.body.reason || null,
                 });
             } catch (mailErr) {
-                console.error('[licenses] Sperr-Mail fehlgeschlagen:', mailErr.message);
+                logger.error({ err: mailErr }, '[licenses] Sperr-Mail fehlgeschlagen:');
             }
         }
         res.json({ success: true });
@@ -398,9 +399,9 @@ router.post(
                         discount_pct: req.body.discount_pct,
                     });
                 } catch (invErr) {
-                    console.error(
-                        '[licenses] Auto-Verlängerungs-Rechnung fehlgeschlagen:',
-                        invErr.message
+                    logger.error(
+                        { err: invErr },
+                        '[licenses] Auto-Verlängerungs-Rechnung fehlgeschlagen:'
                     );
                 }
             }
@@ -426,7 +427,7 @@ router.post(
                     days,
                 });
             } catch (mailErr) {
-                console.error('[licenses] Verlängerungs-Mail fehlgeschlagen:', mailErr.message);
+                logger.error({ err: mailErr }, '[licenses] Verlängerungs-Mail fehlgeschlagen:');
             }
         }
 
@@ -515,7 +516,7 @@ router.post(
             try {
                 createInvoiceFromLicense(key, req.admin?.username || 'admin');
             } catch (invErr) {
-                console.warn('[licenses] Auto-Upgrade-Rechnung fehlgeschlagen:', invErr.message);
+                logger.warn({ err: invErr }, '[licenses] Auto-Upgrade-Rechnung fehlgeschlagen:');
             }
         }
 
@@ -738,7 +739,7 @@ router.post(
                 }
                 results.ok.push(key);
             } catch (e) {
-                console.error(`[bulk] ${key}:`, e.message);
+                logger.error({ err: e }, `[bulk] ${key}:`);
                 results.failed.push({ key, reason: e.message });
             }
         }

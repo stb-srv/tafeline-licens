@@ -10,6 +10,7 @@ import {
     parseJsonField,
 } from '../../helpers.js';
 import { toDbDate, requirePortalAuth } from './shared.js';
+import logger from '../../logger.js';
 
 const router = Router();
 
@@ -75,7 +76,7 @@ router.post(
                 req.customer.portal_username || req.customer.email
             );
         } catch (invErr) {
-            console.error('[Portal/upgrade] Auto-Rechnung fehlgeschlagen:', invErr.message);
+            logger.error({ err: invErr }, '[Portal/upgrade] Auto-Rechnung fehlgeschlagen:');
         }
 
         await addAuditLog('portal_license_upgraded', {
@@ -237,9 +238,9 @@ router.post(
                     req.customer.portal_username || req.customer.email
                 );
             } catch (invErr) {
-                console.error(
-                    '[Portal/renew] Rechnung konnte nicht erstellt werden:',
-                    invErr.message
+                logger.error(
+                    { err: invErr },
+                    '[Portal/renew] Rechnung konnte nicht erstellt werden:'
                 );
             }
         }

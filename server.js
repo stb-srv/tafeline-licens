@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import { testConnection, database } from './server/db.js';
 import db from './server/db.js';
-import { RSA_PRIVATE_KEY, RSA_PUBLIC_KEY, isHmacActive } from './server/crypto.js';
+import { RSA_PRIVATE_KEY, isHmacActive } from './server/crypto.js';
 import { startCron } from './server/cron.js';
 import { PLAN_DEFINITIONS } from './server/plans.js';
 import fs from 'fs';

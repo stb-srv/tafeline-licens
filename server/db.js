@@ -34,6 +34,7 @@ export function runTransaction(fn) {
 
 export function testConnection() {
     database.prepare('SELECT 1').get();
+    // eslint-disable-next-line no-console
     console.log('✅  SQLite Datenbank verbunden –', DB_PATH);
 }
 

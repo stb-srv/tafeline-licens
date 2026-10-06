@@ -5,6 +5,7 @@ import db from '../db.js';
 import { sendTemplateMail } from '../mailer/index.js';
 import { addAuditLog } from '../helpers.js';
 import { requireAuth, requireSuperAdmin, asyncHandler } from '../middleware.js';
+import logger from '../logger.js';
 
 const router = Router();
 
@@ -17,7 +18,7 @@ function generateTempPassword() {
     const digits = '23456789';
     const special = '!@#$%&*';
     const all = upper + lower + digits + special;
-    let pw = [
+    const pw = [
         upper[crypto.randomInt(upper.length)],
         digits[crypto.randomInt(digits.length)],
         special[crypto.randomInt(special.length)],
@@ -161,7 +162,7 @@ router.post(
                 ]
             );
         } catch (e) {
-            console.error('[customers/create]', e);
+            logger.error({ err: e }, '[customers/create]');
             return res
                 .status(500)
                 .json({ success: false, message: `Fehler beim Anlegen: ${e.message}` });
@@ -192,7 +193,7 @@ router.post(
                 login_url: `${portalUrl}/portal.html`,
             });
         } catch (mailErr) {
-            console.error('[customers] Willkommens-Mail fehlgeschlagen:', mailErr.message);
+            logger.error({ err: mailErr }, '[customers] Willkommens-Mail fehlgeschlagen:');
         }
 
         const [[customer]] = db.query(
@@ -344,7 +345,7 @@ router.post(
             );
             res.json({ success: true, message: `Einladungsmail an ${customer.email} gesendet.` });
         } catch (e) {
-            console.error('[portal-invite]', e.message);
+            logger.error({ err: e }, '[portal-invite]');
             res.status(500).json({ success: false, message: `Fehler: ${e.message}` });
         }
     })

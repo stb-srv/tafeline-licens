@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import db from './db.js';
+import logger from './logger.js';
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
 const RETRY_DELAYS = [0, 5 * 60 * 1000, 30 * 60 * 1000]; // 0, 5min, 30min
@@ -12,7 +13,7 @@ function logWebhookCall(url, event, status, errorMessage = null, attemptCount = 
             [crypto.randomUUID(), url, event, status, errorMessage, attemptCount]
         );
     } catch (e) {
-        console.error('❌ Fehler beim Schreiben des Webhook-Logs:', e.message);
+        logger.error({ err: e }, '❌ Fehler beim Schreiben des Webhook-Logs:');
     }
 }
 
@@ -48,9 +49,9 @@ async function sendWithRetry(url, secret, body, event) {
             return;
         } catch (e) {
             if (attempt === RETRY_DELAYS.length) {
-                console.warn(
-                    `⚠️  Webhook ${url} nach ${attempt} Versuchen fehlgeschlagen:`,
-                    e.message
+                logger.warn(
+                    { err: e },
+                    `⚠️  Webhook ${url} nach ${attempt} Versuchen fehlgeschlagen:`
                 );
                 logWebhookCall(url, event, 'failed', e.message, attempt);
                 try {

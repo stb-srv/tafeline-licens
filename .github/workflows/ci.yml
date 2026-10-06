@@ -13,7 +13,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run lint
+      - run: npx eslint . --max-warnings 0
       - run: npm run format:check
       - run: npm test
       - run: npm audit --omit=dev --audit-level=high
