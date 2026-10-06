@@ -8,11 +8,9 @@ const ADMIN_SECRET = 'secure-test-secret';
 
 describe('Invoice Admin API', () => {
     let adminToken;
-    let superToken;
 
     beforeAll(() => {
         adminToken = jwt.sign({ username: 'testadmin', role: 'admin' }, ADMIN_SECRET);
-        superToken = jwt.sign({ username: 'super', role: 'superadmin' }, ADMIN_SECRET);
     });
 
     beforeEach(() => {

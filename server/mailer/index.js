@@ -6,6 +6,7 @@
 import nodemailer from 'nodemailer';
 import db from '../db.js';
 import { renderTemplate } from './templates.js';
+import logger from '../logger.js';
 
 // Hostname aus einer E-Mail-Adresse extrahieren (z.B. "noreply@lizenz.de" → "lizenz.de")
 function domainFromAddress(addr) {
@@ -46,7 +47,7 @@ export function buildTransporter(cfg) {
         debug: false,
     };
 
-    console.log(`[Mailer] Transporter: ${cfg.host}:${port} secure=${secure} name=${greeting}`);
+    logger.info(`[Mailer] Transporter: ${cfg.host}:${port} secure=${secure} name=${greeting}`);
     return nodemailer.createTransport(options);
 }
 
@@ -67,7 +68,7 @@ export async function getActiveSmtpConfig() {
             };
         }
     } catch (e) {
-        console.warn('[Mailer] DB-Abfrage fehlgeschlagen, fallback auf .env:', e.message);
+        logger.warn({ err: e }, '[Mailer] DB-Abfrage fehlgeschlagen, fallback auf .env:');
     }
 
     // Fallback: .env
@@ -110,7 +111,7 @@ export async function sendMail({ to, subject, html, text, attachments }) {
         attachments: attachments || [],
     });
 
-    console.log(
+    logger.info(
         `[Mailer] E-Mail gesendet an ${to} | MessageId: ${info.messageId} | SMTP: ${cfg.source}`
     );
     return info;

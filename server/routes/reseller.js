@@ -5,6 +5,7 @@ import { fireWebhook } from '../webhook.js';
 import { sendTemplateMail } from '../mailer/index.js';
 import { PLAN_DEFINITIONS } from '../plans.js';
 import crypto from 'crypto';
+import logger from '../logger.js';
 
 const router = Router();
 
@@ -94,7 +95,7 @@ router.post(
                     limits: { max_dishes: plan.menu_items, max_tables: plan.max_tables },
                 });
             } catch (e) {
-                console.warn('Reseller Welcome-Mail fehlgeschlagen:', e.message);
+                logger.warn({ err: e }, 'Reseller Welcome-Mail fehlgeschlagen:');
             }
         }
 

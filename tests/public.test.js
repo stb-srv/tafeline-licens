@@ -4,7 +4,7 @@ import db from '../server/db.js';
 import { jest } from '@jest/globals';
 
 // DB Mock
-jest.spyOn(db, 'query').mockImplementation((sql, params) => {
+jest.spyOn(db, 'query').mockImplementation((sql, _params) => {
     if (sql.includes('SELECT 1')) {
         return Promise.resolve([[{ 1: 1 }], []]);
     }

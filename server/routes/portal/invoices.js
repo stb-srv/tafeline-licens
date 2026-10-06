@@ -5,6 +5,7 @@ import { getInvoiceWithItems } from '../../invoiceHelper.js';
 import { getInvoicePDFBuffer } from '../../pdfGenerator.js';
 import { addAuditLog, asyncHandler } from '../../helpers.js';
 import { requirePortalAuth } from './shared.js';
+import logger from '../../logger.js';
 
 const router = Router();
 
@@ -19,7 +20,7 @@ router.get('/invoices', requirePortalAuth, async (req, res) => {
         );
         res.json({ success: true, invoices: rows });
     } catch (e) {
-        console.error('[Portal/invoices] Error:', e.message);
+        logger.error({ err: e }, '[Portal/invoices] Error:');
         res.status(500).json({ success: false, message: 'Fehler beim Laden der Rechnungen.' });
     }
 });
@@ -44,7 +45,7 @@ router.get('/invoices/:id/pdf', requirePortalAuth, async (req, res) => {
             res.send(await getInvoicePDFBuffer({ ...settings, ...invoice }));
         }
     } catch (e) {
-        console.error('[Portal/invoices/pdf] Error:', e.message);
+        logger.error({ err: e }, '[Portal/invoices/pdf] Error:');
         res.status(500).json({ success: false, message: 'Fehler beim Abrufen des PDF-Dokuments.' });
     }
 });

@@ -6,6 +6,7 @@ import { getInvoiceWithItems } from '../../invoiceHelper.js';
 import { generateInvoicePDF, getInvoicePDFBuffer } from '../../pdfGenerator.js';
 import fs from 'fs';
 import path from 'path';
+import logger from '../../logger.js';
 
 const router = express.Router();
 
@@ -54,7 +55,7 @@ router.post(
                 });
             } catch (mailErr) {
                 mailError = mailErr.message;
-                console.error('[admin/invoices/send] Email failed:', mailErr.message);
+                logger.error({ err: mailErr }, '[admin/invoices/send] Email failed:');
             }
         } else {
             mailError = 'Kunde hat keine E-Mail-Adresse hinterlegt.';
@@ -139,7 +140,7 @@ router.post(
                 });
             } catch (mailErr) {
                 mailError = mailErr.message;
-                console.error('[admin/invoices/resend] Email failed:', mailErr.message);
+                logger.error({ err: mailErr }, '[admin/invoices/resend] Email failed:');
             }
         } else {
             mailError = 'Kunde hat keine E-Mail-Adresse hinterlegt.';

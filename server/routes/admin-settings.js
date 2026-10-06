@@ -13,6 +13,7 @@ import {
 } from '../middleware.js';
 import { generateKeyPair, getAllJwks } from '../crypto.js';
 import { retryDeadLetter } from '../webhook.js';
+import logger from '../logger.js';
 
 const router = Router();
 
@@ -327,7 +328,7 @@ router.post(
                 message: 'SMTP-Konfiguration gespeichert und Verbindung erfolgreich verifiziert.',
             });
         } catch (e) {
-            console.error('[SMTP save]', e);
+            logger.error({ err: e }, '[SMTP save]');
             res.status(400).json({ success: false, message: `SMTP-Fehler: ${e.message}` });
         }
     })

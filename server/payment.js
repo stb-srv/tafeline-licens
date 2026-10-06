@@ -1,5 +1,3 @@
-import crypto from 'crypto';
-
 const MOLLIE_API_KEY = process.env.MOLLIE_API_KEY || '';
 const MOLLIE_BASE = 'https://api.mollie.com/v2';
 

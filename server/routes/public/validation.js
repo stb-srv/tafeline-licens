@@ -428,8 +428,7 @@ router.post(
             const l = rows[0];
             if (!l || l.status !== 'active')
                 return res.status(403).json({ success: false, message: 'License invalid.' });
-            const { licenseStatus: offlineStatus, hardExpired: offlineHardExpired } =
-                resolveGrace(l);
+            const { hardExpired: offlineHardExpired } = resolveGrace(l);
             if (offlineHardExpired)
                 return res.status(403).json({ success: false, message: 'License expired.' });
             if (domain && !domainMatches(l.associated_domain, domain))

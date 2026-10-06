@@ -25,10 +25,31 @@ export default [
             'no-var': 'error',
             'prefer-const': 'warn',
             eqeqeq: ['warn', 'smart'],
-            'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+            'no-unused-vars': [
+                'warn',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    caughtErrors: 'none',
+                    ignoreRestSiblings: true,
+                },
+            ],
             'no-empty': ['error', { allowEmptyCatch: true }],
             'no-console': 'warn',
         },
+    },
+    // CLI-Skripte, Migrationen und Startup: Ausgabe auf der Konsole ist gewollt
+    {
+        files: [
+            'init.js',
+            'reset-admin.js',
+            'restore.js',
+            'setup-db.js',
+            'server.js',
+            'server/migrate.js',
+            'server/migrations/**/*.js',
+        ],
+        rules: { 'no-console': 'off' },
     },
     // Astro-Frontend (Browser)
     {

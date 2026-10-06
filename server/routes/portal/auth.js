@@ -15,6 +15,7 @@ import {
     uniquePortalUsername,
     requirePortalAuth,
 } from './shared.js';
+import logger from '../../logger.js';
 
 const router = Router();
 
@@ -81,7 +82,7 @@ router.post('/login', portalLoginLimiter, async (req, res) => {
             },
         });
     } catch (e) {
-        console.error('[Portal/login]', e.message);
+        logger.error({ err: e }, '[Portal/login]');
         res.status(500).json({ success: false, message: 'Interner Fehler.' });
     }
 });
@@ -217,7 +218,7 @@ router.patch('/update-profile', requirePortalAuth, async (req, res) => {
             },
         });
     } catch (e) {
-        console.error('[Portal/update-profile]', e.message);
+        logger.error({ err: e }, '[Portal/update-profile]');
         res.status(500).json({ success: false, message: 'Interner Fehler.' });
     }
 });
@@ -250,7 +251,7 @@ router.post('/change-password', requirePortalAuth, async (req, res) => {
         ]);
         res.json({ success: true, message: 'Passwort erfolgreich geändert.' });
     } catch (e) {
-        console.error('[Portal/change-password]', e.message);
+        logger.error({ err: e }, '[Portal/change-password]');
         res.status(500).json({ success: false, message: 'Interner Fehler.' });
     }
 });
@@ -286,7 +287,7 @@ router.post('/setup-password', inviteLimiter, async (req, res) => {
             message: 'Passwort erfolgreich gesetzt. Du kannst dich jetzt einloggen.',
         });
     } catch (e) {
-        console.error('[Portal/setup-password]', e.message);
+        logger.error({ err: e }, '[Portal/setup-password]');
         res.status(500).json({ success: false, message: 'Interner Fehler.' });
     }
 });
@@ -468,7 +469,7 @@ router.post(
                 reset_url: `${portalUrl}/login.html?reset=${resetToken}`,
             });
         } catch (e) {
-            console.error('[Portal/forgot-password]', e.message);
+            logger.error({ err: e }, '[Portal/forgot-password]');
         }
     })
 );

@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import db from './db.js';
+import logger from './logger.js';
 
 export const generateKey = (type) => {
     const prefix =
@@ -52,7 +53,7 @@ export const addAuditLog = async (action, details, actor = 'system') => {
             [crypto.randomUUID(), actor, action, JSON.stringify(details)]
         );
     } catch (e) {
-        console.error('Audit-Log Fehler:', e.message);
+        logger.error({ err: e }, 'Audit-Log Fehler:');
     }
 };
 
