@@ -7,6 +7,11 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Backups werden nach dem Erstellen geprüft (integrity_check, Kerntabellen); defekte Backups werden verworfen.
+- Optionale zweite Backup-Kopie (`BACKUP_COPY_DIR`) und Betriebs-Alarme per E-Mail/Webhook (`ALERT_EMAIL`, `ALERT_WEBHOOK_URL`) bei fehlgeschlagenem Backup.
+
 ### Changed
 
 - Abhängigkeiten aktualisiert (Express 5, bcryptjs 3, express-rate-limit 8, dotenv, pdfkit, nodemailer, pino, Astro, ESLint 10); `npm audit` meldet 0 Schwachstellen.
