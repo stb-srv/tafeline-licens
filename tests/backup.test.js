@@ -1,6 +1,13 @@
 import { jest } from '@jest/globals';
 import fs from 'fs';
 
+jest.unstable_mockModule('better-sqlite3', () => ({
+    default: jest.fn(() => ({
+        pragma: () => [{ integrity_check: 'ok' }],
+        prepare: () => ({ get: () => ({ n: 3 }) }),
+        close: jest.fn(),
+    })),
+}));
 jest.unstable_mockModule('../server/db.js', () => ({
     database: { backup: jest.fn().mockResolvedValue(undefined) },
     query: jest.fn().mockReturnValue([[{ backup_retention_days: 14 }]]),

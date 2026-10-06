@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import Database from 'better-sqlite3';
 import { database, query } from './db.js';
 import logger from './logger.js';
 
@@ -20,8 +21,46 @@ export async function runBackup() {
     const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const dest = path.join(BACKUP_DIR, `licens-${ts}.db`);
     await database.backup(dest);
-    logger.info({ dest }, 'Datenbank-Backup erstellt.');
+    try {
+        verifyBackup(dest);
+    } catch (err) {
+        fs.rmSync(dest, { force: true });
+        throw err;
+    }
+    logger.info({ dest }, 'Datenbank-Backup erstellt und geprüft.');
+    copyOffsite(dest);
     return dest;
+}
+
+/** Öffnet das Backup schreibgeschützt und prüft Integrität sowie Kerntabellen. */
+export function verifyBackup(file) {
+    const db = new Database(file, { readonly: true });
+    try {
+        const [{ integrity_check: result }] = db.pragma('integrity_check');
+        if (result !== 'ok') throw new Error(`Backup defekt (integrity_check: ${result})`);
+        const hasCore = db
+            .prepare(
+                "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('licenses','admins','schema_migrations')"
+            )
+            .get().n;
+        if (hasCore < 3) throw new Error('Backup unvollständig (Kerntabellen fehlen)');
+        return true;
+    } finally {
+        db.close();
+    }
+}
+
+/** Optionale zweite Kopie (BACKUP_COPY_DIR, z. B. gemountetes NAS/Remote-Share). Fehler werden nur geloggt. */
+function copyOffsite(file) {
+    const dir = process.env.BACKUP_COPY_DIR;
+    if (!dir) return;
+    try {
+        fs.mkdirSync(dir, { recursive: true });
+        fs.copyFileSync(file, path.join(dir, path.basename(file)));
+        logger.info({ dir }, 'Backup-Kopie abgelegt.');
+    } catch (err) {
+        logger.error({ err, dir }, 'Backup-Kopie fehlgeschlagen.');
+    }
 }
 
 export function rotateBackups(retentionDays) {

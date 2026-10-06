@@ -4,6 +4,7 @@ import { addAuditLog } from './helpers.js';
 import { fireWebhook } from './webhook.js';
 import { createInvoiceFromLicense } from './invoiceHelper.js';
 import { runBackup, rotateBackups } from './backup.js';
+import { sendAlert } from './alerts.js';
 import logger from './logger.js';
 
 export async function runExpiryCron() {
@@ -262,6 +263,10 @@ export async function runBackupCron() {
         return dest;
     } catch (e) {
         logger.error({ err: e }, '❌ Backup-Cron Fehler:');
+        await sendAlert(
+            'Backup fehlgeschlagen',
+            `Das tägliche Datenbank-Backup ist fehlgeschlagen: ${e.message}`
+        );
     }
 }
 
