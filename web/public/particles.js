@@ -9,27 +9,27 @@
     if (window.__tafelineParticles) return;
     window.__tafelineParticles = true;
 
-    var canvas = document.createElement('canvas');
+    const canvas = document.createElement('canvas');
     canvas.className = 'bg-particles';
     canvas.setAttribute('aria-hidden', 'true');
     document.body.insertBefore(canvas, document.body.firstChild);
-    var ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    var motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    var particles = [];
-    var w = 0;
-    var h = 0;
-    var dpr = 1;
-    var rgb = '0,191,165';
-    var raf = 0;
-    var LINK_DIST = 130;
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const particles = [];
+    let w = 0;
+    let h = 0;
+    let dpr = 1;
+    let rgb = '0,191,165';
+    let raf = 0;
+    const LINK_DIST = 130;
 
     function readColor() {
-        var v = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
-        var m = /^#([0-9a-f]{6})$/i.exec(v);
+        const v = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+        const m = /^#([0-9a-f]{6})$/i.exec(v);
         if (m) {
-            var n = parseInt(m[1], 16);
+            const n = parseInt(m[1], 16);
             rgb = (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255);
         }
     }
@@ -41,7 +41,7 @@
         canvas.width = Math.round(w * dpr);
         canvas.height = Math.round(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        var count = Math.max(24, Math.min(80, Math.round((w * h) / 20000)));
+        const count = Math.max(24, Math.min(80, Math.round((w * h) / 20000)));
         while (particles.length < count) {
             particles.push({
                 x: Math.random() * w,
@@ -56,8 +56,8 @@
     }
 
     function step() {
-        for (var i = 0; i < particles.length; i++) {
-            var p = particles[i];
+        for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
             p.x += p.vx;
             p.y += p.vy;
             if (p.x < -10) p.x = w + 10;
@@ -69,7 +69,7 @@
 
     function draw() {
         ctx.clearRect(0, 0, w, h);
-        var i, j, a, b, dx, dy, d;
+        let i, j, a, b, dx, dy, d;
         ctx.lineWidth = 1;
         for (i = 0; i < particles.length; i++) {
             a = particles[i];
@@ -79,7 +79,12 @@
                 dy = a.y - b.y;
                 d = dx * dx + dy * dy;
                 if (d < LINK_DIST * LINK_DIST) {
-                    ctx.strokeStyle = 'rgba(' + rgb + ',' + (0.16 * (1 - Math.sqrt(d) / LINK_DIST)).toFixed(3) + ')';
+                    ctx.strokeStyle =
+                        'rgba(' +
+                        rgb +
+                        ',' +
+                        (0.16 * (1 - Math.sqrt(d) / LINK_DIST)).toFixed(3) +
+                        ')';
                     ctx.beginPath();
                     ctx.moveTo(a.x, a.y);
                     ctx.lineTo(b.x, b.y);
@@ -116,13 +121,13 @@
         if (document.hidden) stop();
         else start();
     });
-    var onMotion = function () {
+    const onMotion = function () {
         stop();
         if (motionQuery.matches) draw();
         else start();
     };
     if (motionQuery.addEventListener) motionQuery.addEventListener('change', onMotion);
-    var resizeTimer = 0;
+    let resizeTimer = 0;
     window.addEventListener('resize', function () {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(resize, 120);
