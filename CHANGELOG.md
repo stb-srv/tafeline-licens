@@ -7,6 +7,10 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- 2FA (TOTP) funktionierte seit dem Update auf otplib 13 nicht mehr (`authenticator` existiert dort nicht); Login, Einrichtung und Bestätigung nutzen jetzt die neue API über `server/totp.js`.
+
 ### Added
 
 - Backups werden nach dem Erstellen geprüft (integrity_check, Kerntabellen); defekte Backups werden verworfen.
