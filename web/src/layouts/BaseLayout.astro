@@ -44,5 +44,6 @@ const { title = 'Tafeline', description = '', bodyClass = '' } = Astro.props;
     </head>
     <body class={bodyClass}>
         <slot />
+        <script is:inline src="/particles.js" defer></script>
     </body>
 </html>

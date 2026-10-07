@@ -51,6 +51,14 @@ export default [
         ],
         rules: { 'no-console': 'off' },
     },
+    // Statische Browser-Skripte (klassische Skripte, kein Modul)
+    {
+        files: ['web/public/**/*.js'],
+        languageOptions: {
+            sourceType: 'script',
+            globals: { ...globals.browser },
+        },
+    },
     // Astro-Frontend (Browser)
     {
         files: ['web/src/**/*.js'],
