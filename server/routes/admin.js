@@ -10,8 +10,7 @@ import {
     asyncHandler,
     signTempToken,
 } from '../middleware.js';
-import * as otplibPkg from 'otplib';
-const { authenticator } = otplibPkg;
+import { newTotpSecret, totpUri, verifyTotp } from '../totp.js';
 import QRCode from 'qrcode';
 
 import licensesRouter from './admin-licenses.js';
@@ -113,7 +112,7 @@ router.post(
             const admin = rows[0];
             if (!admin) return res.status(401).json({ success: false, message: 'Admin not found' });
 
-            const isValid = authenticator.verify({ token: code, secret: admin.two_factor_secret });
+            const isValid = verifyTotp(code, admin.two_factor_secret);
             if (!isValid)
                 return res.status(401).json({ success: false, message: 'Invalid 2FA code' });
 
@@ -151,14 +150,14 @@ router.post(
 
         let secret = admin.two_factor_secret;
         if (!secret) {
-            secret = authenticator.generateSecret();
+            secret = newTotpSecret();
             db.query('UPDATE admins SET two_factor_secret = ? WHERE username = ?', [
                 secret,
                 req.admin.username,
             ]);
         }
 
-        const otpauth = authenticator.keyuri(req.admin.username, 'Tafeline License', secret);
+        const otpauth = totpUri(req.admin.username, 'Tafeline License', secret);
         const qrCodeUrl = await QRCode.toDataURL(otpauth);
 
         res.json({
@@ -182,7 +181,7 @@ router.post(
 
         if (!secret) return res.status(400).json({ success: false, message: '2FA not set up' });
 
-        const isValid = authenticator.verify({ token: code, secret });
+        const isValid = verifyTotp(code, secret);
         if (!isValid) return res.status(400).json({ success: false, message: 'Ungültiger Code' });
 
         db.query('UPDATE admins SET two_factor_enabled = 1 WHERE username = ?', [
@@ -211,7 +210,7 @@ router.post(
         let verified = false;
         if (password) verified = await bcrypt.compare(password, admin.password_hash);
         if (!verified && code && admin.two_factor_secret) {
-            verified = authenticator.verify({ token: code, secret: admin.two_factor_secret });
+            verified = verifyTotp(code, admin.two_factor_secret);
         }
 
         if (!verified) {
