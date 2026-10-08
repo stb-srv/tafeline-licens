@@ -50,7 +50,10 @@ export function API(path, opts) {
                 : Promise.resolve({})
         ).then(function (d) {
             if (r.status === 401) {
-                const isLoginEndpoint = path === '/admin/login' || path === '/admin/login/2fa';
+                const isLoginEndpoint =
+                    path === '/admin/login' ||
+                    path === '/admin/login/2fa' ||
+                    path === '/portal/login';
                 if (isLoginEndpoint) {
                     throw d;
                 }

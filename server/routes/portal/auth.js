@@ -15,6 +15,8 @@ import {
     uniquePortalUsername,
     requirePortalAuth,
 } from './shared.js';
+import { tryAdminLogin } from '../../adminLogin.js';
+import { getClientIp } from '../../helpers.js';
 import logger from '../../logger.js';
 
 const router = Router();
@@ -37,14 +39,20 @@ router.post('/login', portalLoginLimiter, async (req, res) => {
             login,
         ]);
         const customer = rows[0];
-        if (!customer || !customer.password_hash)
+        const customerOk =
+            !!customer &&
+            !!customer.password_hash &&
+            (await bcrypt.compare(password, customer.password_hash));
+        if (!customerOk) {
+            // Unified login: admins sign in through the same form.
+            const adminResult = await tryAdminLogin(email.trim(), password, req);
+            if (adminResult)
+                return res.json({ success: true, account_type: 'admin', ...adminResult });
+            await addAuditLog('login_failed', { login, ip: getClientIp(req) });
             return res
                 .status(401)
                 .json({ success: false, message: 'Benutzername/E-Mail oder Passwort falsch.' });
-        if (!(await bcrypt.compare(password, customer.password_hash)))
-            return res
-                .status(401)
-                .json({ success: false, message: 'Benutzername/E-Mail oder Passwort falsch.' });
+        }
         if (customer.verified === 0) {
             return res.status(403).json({
                 success: false,

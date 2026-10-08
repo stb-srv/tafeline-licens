@@ -21,6 +21,44 @@ describe('Customer Portal API', () => {
         jest.clearAllMocks();
     });
 
+    test('POST /api/portal/login signs in an admin via the unified login', async () => {
+        const hash = await bcrypt.hash('password123', 4);
+        const mock = jest.spyOn(db, 'query').mockImplementation((sql) => {
+            if (sql.includes('FROM customers')) return [[]];
+            if (sql.includes('FROM admins WHERE username = ?')) {
+                return [
+                    [
+                        {
+                            id: 1,
+                            username: 'testadmin',
+                            password_hash: hash,
+                            role: 'superadmin',
+                            two_factor_enabled: 0,
+                        },
+                    ],
+                ];
+            }
+            return [{ affectedRows: 1 }];
+        });
+        const res = await request(app)
+            .post('/api/portal/login')
+            .send({ email: 'testadmin', password: 'password123' });
+        expect(res.statusCode).toBe(200);
+        expect(res.body.account_type).toBe('admin');
+        expect(res.body.role).toBe('superadmin');
+        expect(res.body).toHaveProperty('token');
+        mock.mockRestore();
+    });
+
+    test('POST /api/portal/login rejects unknown credentials', async () => {
+        const mock = jest.spyOn(db, 'query').mockImplementation(() => [[]]);
+        const res = await request(app)
+            .post('/api/portal/login')
+            .send({ email: 'nobody', password: 'wrongpass' });
+        expect(res.statusCode).toBe(401);
+        mock.mockRestore();
+    });
+
     test('GET /api/portal/me should require login', async () => {
         const res = await request(app).get('/api/portal/me');
         expect(res.statusCode).toBe(401);
