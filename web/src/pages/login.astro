@@ -27,20 +27,12 @@ import Header from '../components/Header.astro';
 
     <div class="center-wrap">
         <div class="auth-card">
-            <!-- Tab-Leiste -->
-            <div class="login-tabs">
-                <button class="login-tab active" id="tab-customer" onclick="setMode('customer')">
-                    Kunden-Portal
-                </button>
-                <button class="login-tab" id="tab-admin" onclick="setMode('admin')">Admin</button>
-            </div>
-
             <div class="card-body">
                 <!-- Kunden: Login -->
                 <div id="panel-cust-login" class="panel active">
                     <div class="panel-title"><i data-lucide="log-in"></i> Anmelden</div>
                     <div class="panel-sub">
-                        Melde dich mit deiner E-Mail oder deinem Benutzernamen an.
+                        Melde dich mit deiner E-Mail oder deinem Benutzernamen an (Kunden und Administratoren).
                     </div>
                     <div id="cust-login-alert"></div>
                     <div class="form-group">
@@ -131,28 +123,6 @@ import Header from '../components/Header.astro';
                     </div>
                 </div>
 
-                <!-- Admin: Login -->
-                <div id="panel-admin-login" class="panel">
-                    <div class="panel-title"><i data-lucide="shield"></i> Anmelden</div>
-                    <div class="panel-sub">Administration des Lizenzservers.</div>
-                    <div id="admin-login-alert"></div>
-                    <div class="form-group">
-                        <label>Benutzername</label><input
-                            type="text"
-                            id="admin-user"
-                            autocomplete="username"
-                        />
-                    </div>
-                    <div class="form-group">
-                        <label>Passwort</label><input
-                            type="password"
-                            id="admin-pass"
-                            autocomplete="current-password"
-                        />
-                    </div>
-                    <button class="btn btn-primary" onclick="doAdminLogin()">Einloggen</button>
-                </div>
-
                 <!-- Admin: 2FA -->
                 <div id="panel-admin-2fa" class="panel">
                     <div class="panel-title"><i data-lucide="shield-check"></i> Zwei-Faktor</div>
@@ -170,7 +140,7 @@ import Header from '../components/Header.astro';
                     </div>
                     <button class="btn btn-primary" onclick="doAdmin2FA()">Verifizieren</button>
                     <div class="links-row">
-                        <a class="link" onclick="showPanel('admin', 'login')">Abbrechen</a>
+                        <a class="link" onclick="showPanel('cust', 'login')">Abbrechen</a>
                     </div>
                 </div>
             </div>
@@ -548,15 +518,10 @@ import Header from '../components/Header.astro';
 
         // Hash routing
         if (window.location.hash === '#register') {
-            setMode('customer');
             showPanel('cust', 'register');
         }
         if (window.location.hash === '#forgot') {
-            setMode('customer');
             showPanel('cust', 'forgot');
-        }
-        if (window.location.hash === '#admin') {
-            setMode('admin');
         }
     })();
 
@@ -566,16 +531,6 @@ import Header from '../components/Header.astro';
         document.documentElement.setAttribute('data-theme', n);
         localStorage.setItem('theme', n);
         setThemeIcon(n);
-    }
-
-    let _mode = 'customer';
-
-    function setMode(m) {
-        _mode = m;
-        document.getElementById('tab-customer').classList.toggle('active', m === 'customer');
-        document.getElementById('tab-admin').classList.toggle('active', m === 'admin');
-        if (m === 'customer') showPanel('cust', 'login');
-        else showPanel('admin', 'login');
     }
 
     function showPanel(prefix, name) {
@@ -621,6 +576,15 @@ import Header from '../components/Header.astro';
                 });
             })
             .then(function (d) {
+                if (d.account_type === 'admin') {
+                    if (d.two_factor_required) {
+                        _adminTempToken = d.temp_token;
+                        showPanel('admin', '2fa');
+                    } else {
+                        finishAdminLogin(d);
+                    }
+                    return;
+                }
                 sessionStorage.setItem('portal_token', d.token);
                 window.location.href = '/portal';
             })
@@ -704,38 +668,13 @@ import Header from '../components/Header.astro';
             });
     }
 
-    // Admin Login
+    // Admin-Anmeldung läuft über das gemeinsame Login-Formular (Rolle bestimmt das Ziel).
     let _adminTempToken = '';
-    function doAdminLogin() {
-        const user = document.getElementById('admin-user').value.trim();
-        const pass = document.getElementById('admin-pass').value;
-        if (!user || !pass)
-            return showAlert('admin-login-alert', 'Benutzername und Passwort eingeben.');
-        fetch('/api/admin/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: user, password: pass }),
-        })
-            .then(function (r) {
-                return r.json().then(function (d) {
-                    if (!r.ok) throw d;
-                    return d;
-                });
-            })
-            .then(function (d) {
-                if (d.two_factor_required) {
-                    _adminTempToken = d.temp_token;
-                    showPanel('admin', '2fa');
-                } else {
-                    sessionStorage.setItem('admin_token', d.token);
-                    sessionStorage.setItem('admin_role', d.role || '');
-                    sessionStorage.setItem('admin_user', d.username || '');
-                    window.location.href = '/';
-                }
-            })
-            .catch(function (e) {
-                showAlert('admin-login-alert', esc(e.message || 'Login fehlgeschlagen.'));
-            });
+    function finishAdminLogin(d) {
+        sessionStorage.setItem('admin_token', d.token);
+        sessionStorage.setItem('admin_role', d.role || '');
+        sessionStorage.setItem('admin_user', d.username || '');
+        window.location.href = '/';
     }
 
     function doAdmin2FA() {
@@ -753,10 +692,7 @@ import Header from '../components/Header.astro';
                 });
             })
             .then(function (d) {
-                sessionStorage.setItem('admin_token', d.token);
-                sessionStorage.setItem('admin_role', d.role || '');
-                sessionStorage.setItem('admin_user', d.username || '');
-                window.location.href = '/';
+                finishAdminLogin(d);
             })
             .catch(function (e) {
                 showAlert('admin-2fa-alert', esc(e.message || 'Code ungültig.'));
@@ -772,7 +708,6 @@ import Header from '../components/Header.astro';
         if (id === 'panel-cust-login') doCustomerLogin();
         else if (id === 'panel-cust-register') doRegister();
         else if (id === 'panel-cust-forgot') doForgotPassword();
-        else if (id === 'panel-admin-login') doAdminLogin();
         else if (id === 'panel-admin-2fa') doAdmin2FA();
     });
 
@@ -780,12 +715,10 @@ import Header from '../components/Header.astro';
     // otherwise scoped, so these must be global).
     Object.assign(window, {
         toggleTheme,
-        setMode,
         showPanel,
         doCustomerLogin,
         doRegister,
         doForgotPassword,
-        doAdminLogin,
         doAdmin2FA,
         clearAlerts,
     });
