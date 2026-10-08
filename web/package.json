@@ -11,8 +11,8 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^7.3.5",
+    "astro": "^7.3.7",
     "chart.js": "^4.5.1",
-    "lucide": "^1.52.0"
+    "lucide": "^1.53.0"
   }
 }
