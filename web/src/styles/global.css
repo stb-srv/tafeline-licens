@@ -177,12 +177,7 @@ button {
 
 /* Skeleton loader shimmer */
 .skeleton {
-    background: linear-gradient(
-        90deg,
-        var(--bg3) 25%,
-        var(--border) 50%,
-        var(--bg3) 75%
-    );
+    background: linear-gradient(90deg, var(--bg3) 25%, var(--border) 50%, var(--bg3) 75%);
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.4s infinite;
     border-radius: var(--radius-sm);
@@ -285,7 +280,9 @@ nav {
     cursor: pointer;
     align-items: center;
     justify-content: center;
-    transition: border-color 0.2s, color 0.2s;
+    transition:
+        border-color 0.2s,
+        color 0.2s;
 }
 .nav-hamburger:hover {
     border-color: var(--primary);
@@ -363,4 +360,14 @@ footer a {
 }
 footer a:hover {
     color: var(--primary);
+}
+
+/* Partikel-Hintergrund (particles.js) */
+.bg-particles {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
 }

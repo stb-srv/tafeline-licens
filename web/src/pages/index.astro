@@ -187,6 +187,83 @@ import Footer from '../components/Footer.astro';
                 background-size: contain;
             }
 
+            #pub-plan-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+                gap: 1.5rem;
+                align-items: stretch;
+            }
+            #pub-plan-grid .plan-card {
+                display: flex;
+                flex-direction: column;
+                min-width: 0;
+                border-width: 2px;
+                padding: var(--space-8) var(--space-6) var(--space-6);
+            }
+            #pub-plan-grid .plan-card.featured {
+                box-shadow: 0 0 0 4px var(--accent-dim);
+            }
+            #pub-plan-grid .plan-desc {
+                color: var(--text2);
+                font-size: var(--text-sm);
+                line-height: 1.5;
+                min-height: 4.5em;
+                margin-bottom: var(--space-4);
+            }
+            #pub-plan-grid .plan-price {
+                display: flex;
+                align-items: baseline;
+                flex-wrap: wrap;
+                gap: 0.3rem;
+                min-height: 3rem;
+                padding-bottom: var(--space-4);
+                border-bottom: 1px solid var(--border);
+                font-family: var(--font-display);
+                font-size: clamp(1.75rem, 3.2vw, 2.25rem);
+                font-weight: 700;
+                color: var(--accent);
+                line-height: 1.1;
+                overflow-wrap: anywhere;
+            }
+            #pub-plan-grid .plan-price.is-free {
+                font-size: clamp(1.5rem, 2.6vw, 1.9rem);
+            }
+            #pub-plan-grid .plan-price span {
+                font-size: var(--text-sm);
+                font-weight: 400;
+                color: var(--text2);
+            }
+            #pub-plan-grid .plan-features {
+                flex: 1;
+                margin: var(--space-4) 0 var(--space-6);
+            }
+            #pub-plan-grid .plan-features li {
+                align-items: flex-start;
+                border-bottom: none;
+                padding: 0.3rem 0;
+                line-height: 1.4;
+            }
+            #pub-plan-grid .plan-features li::before {
+                margin-top: 0.2em;
+            }
+            #pub-plan-grid .plan-cta {
+                display: block;
+                text-align: center;
+                border: 2px solid var(--accent);
+                border-radius: var(--radius-md);
+                padding: var(--space-3);
+                font-weight: 700;
+                text-decoration: none;
+                font-size: var(--text-sm);
+                color: var(--accent);
+                transition: background 0.2s, color 0.2s;
+            }
+            #pub-plan-grid .plan-cta:hover,
+            #pub-plan-grid .plan-cta.primary {
+                background: var(--accent);
+                color: #fff;
+            }
+
             .api-table {
                 width: 100%;
                 border-collapse: collapse;
@@ -1419,11 +1496,6 @@ import Footer from '../components/Footer.astro';
                     </p>
                     <div
                         id="pub-plan-grid"
-                        style="
-                            display: grid;
-                            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-                            gap: 1.5rem;
-                        "
                     >
                         <div
                             style="
@@ -6014,42 +6086,36 @@ import Footer from '../components/Footer.astro';
                             .map(function (p) {
                                 var feats = p.features || [];
                                 var isP = p.plan_id === popularId;
+                                var free = !(p.price > 0);
                                 return (
-                                    '<div style="background:var(--card);border:2px solid ' +
-                                    (isP ? 'var(--accent)' : 'var(--border)') +
-                                    ';border-radius: var(--radius-lg);padding: var(--space-8) var(--space-6);display:flex;flex-direction:column;position:relative;">' +
+                                    '<div class="plan-card' +
+                                    (isP ? ' featured' : '') +
+                                    '">' +
                                     (isP
-                                        ? '<div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size: var(--text-xs);font-weight:700;padding: var(--space-1) var(--space-4);border-radius: var(--radius-xl);"><i data-lucide="star" style="width:0.85em;height:0.85em;vertical-align:-0.1em;margin-right:0.25em;"></i>Beliebt</div>'
+                                        ? '<div class="plan-badge"><i data-lucide="star" style="width:0.85em;height:0.85em;vertical-align:-0.1em;margin-right:0.25em;"></i>Beliebt</div>'
                                         : '') +
-                                    '<div style="font-family:var(--font-display);font-size: var(--text-lg);font-weight: 700;margin-bottom: var(--space-1);">' +
+                                    '<div class="plan-name">' +
                                     esc(p.label) +
                                     '</div>' +
-                                    '<div style="color:var(--text2);font-size: var(--text-sm);margin-bottom: var(--space-4);flex:1;">' +
+                                    '<div class="plan-desc">' +
                                     esc(p.description || '') +
                                     '</div>' +
-                                    '<div style="font-family:var(--font-display);font-size: var(--text-2xl);font-weight: 700;color:var(--accent);line-height:1;margin-bottom: var(--space-1);">' +
-                                    (p.price > 0 ? p.price.toFixed(0) + ' €' : 'Kostenlos') +
-                                    (p.price > 0
-                                        ? '<span style="font-size: var(--text-sm);font-weight:400;color:var(--text2);"> / Jahr</span>'
-                                        : '') +
+                                    '<div class="plan-price' +
+                                    (free ? ' is-free' : '') +
+                                    '">' +
+                                    (free ? 'Kostenlos' : p.price.toFixed(0) + ' €<span>/ Jahr</span>') +
                                     '</div>' +
-                                    '<ul style="list-style:none;margin: var(--space-4) 0 var(--space-6);font-size: var(--text-sm);display:flex;flex-direction:column;gap:.35rem;">' +
+                                    '<ul class="plan-features">' +
                                     feats
                                         .map(function (f) {
-                                            return (
-                                                '<li><span style="color:var(--accent3);font-weight:700;">✓</span> ' +
-                                                esc(f) +
-                                                '</li>'
-                                            );
+                                            return '<li>' + esc(f) + '</li>';
                                         })
                                         .join('') +
                                     '</ul>' +
-                                    '<a href="login.html#register" style="display:block;text-align:center;background:' +
-                                    (isP ? 'var(--accent)' : 'transparent') +
-                                    ';color:' +
-                                    (isP ? '#fff' : 'var(--accent)') +
-                                    ';border:2px solid var(--accent);border-radius: var(--radius-md);padding: var(--space-3);font-weight:700;text-decoration:none;font-size: var(--text-sm);">' +
-                                    (p.price === 0 ? 'Kostenlos starten' : 'Jetzt bestellen') +
+                                    '<a class="plan-cta' +
+                                    (isP ? ' primary' : '') +
+                                    '" href="login.html#register">' +
+                                    (free ? 'Kostenlos starten' : 'Jetzt bestellen') +
                                     '</a>' +
                                     '</div>'
                                 );

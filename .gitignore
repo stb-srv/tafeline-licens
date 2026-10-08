@@ -37,3 +37,7 @@ coverage/
 data/*.db
 data/*.db-shm
 data/*.db-wal
+
+# Von deploy.sh/setup.sh erzeugt
+.deployed-commit
+deploy-backups/

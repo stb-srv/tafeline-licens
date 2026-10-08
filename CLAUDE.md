@@ -149,4 +149,4 @@ Three HTML pages served statically: `index.html` (admin panel), `login.html`, `p
 
 ## Tests
 
-Tests live in `tests/` (`admin.test.js`, `portal.test.js`, `public.test.js`). Jest is configured in `jest.config.js` with env vars pre-set. Tests use `jest.spyOn(db, 'query')` mocks — no real database needed.
+Tests live in `tests/` (`admin`, `portal`, `public`, `invoice`, `cron`, `backup`, `grace_period`). Jest is configured in `jest.config.js` with env vars pre-set. Tests use `jest.spyOn(db, 'query')` mocks — no real database needed.

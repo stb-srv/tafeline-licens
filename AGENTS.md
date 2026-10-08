@@ -1,4 +1,4 @@
-# AGENT.md — OPA-Santorini License Server
+# AGENTS.md — Tafeline License Server
 
 > **Zweck dieser Datei:** Schneller Kontext-Einstieg für KI-Agenten (Copilot, Claude, GPT, Cursor, etc.).  
 > Lies diese Datei zuerst, bevor du Code schreibst oder Änderungen vorschlägst.
@@ -9,9 +9,9 @@
 
 | Eigenschaft         | Wert                                                                 |
 |---------------------|----------------------------------------------------------------------|
-| **Name**            | OPA-Santorini License Server                                         |
+| **Name**            | Tafeline License Server                                         |
 | **Typ**             | REST-API-Lizenzserver (Backend)                                      |
-| **Zweck**           | Verwaltung, Validierung und Überwachung von Lizenzen für das [OPA-Santorini Restaurant-CMS](https://github.com/stb-srv/OPA-Sanatori) |
+| **Zweck**           | Verwaltung, Validierung und Überwachung von Lizenzen für das [Tafeline Restaurant-CMS](https://github.com/stb-srv/tafeline-cms) |
 | **Laufzeitumgebung**| Node.js ≥ 18, MySQL/MariaDB ≥ 10.5                                   |
 | **Lizenz**          | MIT                                                                  |
 | **Status**          | Production                                                           |
@@ -24,7 +24,7 @@
 ## Architektur & Verzeichnisstruktur
 
 ```
-licens-srv_OPA-Santorini/
+tafeline-licens/
 ├── server.js                  # Haupt-Einstiegspunkt – Express-Setup, Middleware, Routen
 ├── setup-db.js                # Einmaliges DB-Setup & initialen Superadmin erstellen
 ├── setup-admin.js             # Admin-Account-Setup Hilfsskript
@@ -169,8 +169,8 @@ Optionale aber empfohlene Variablen für Produktion: `RSA_PRIVATE_KEY`, `RSA_PUB
 
 ```bash
 # 1. Repository klonen
-git clone https://github.com/stb-srv/licens-srv_OPA-Santorini
-cd licens-srv_OPA-Santorini
+git clone https://github.com/stb-srv/tafeline-licens
+cd tafeline-licens
 
 # 2. Abhängigkeiten installieren
 npm install
@@ -242,5 +242,5 @@ Der Server läuft typischerweise hinter einem **nginx Reverse Proxy** auf Ubuntu
 
 ## Verwandte Projekte
 
-- **OPA-Santorini CMS** (Haupt-Anwendung): [github.com/stb-srv/OPA-Sanatori](https://github.com/stb-srv/OPA-Sanatori)
+- **Tafeline CMS** (Haupt-Anwendung): [github.com/stb-srv/tafeline-cms](https://github.com/stb-srv/tafeline-cms)
 - Der License Server ist eine eigenständige Komponente – er läuft auf einem separaten Server/Port.

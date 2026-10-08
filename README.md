@@ -5,21 +5,78 @@
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![Status](https://img.shields.io/badge/Status-Production-success)
 
-Zentraler REST-API-Lizenzserver für das [Tafeline Restaurant-Management-System (CMS)](https://github.com/stb-srv/OPA-Sanatori). Verwaltet, validiert und überwacht Lizenzen für registrierte CMS-Instanzen – mit signierten kryptografischen Tokens für sichere Echtzeit-Validierungen und zeitlich begrenzte Offline-Freischaltungen.
+Zentraler REST-API-Lizenzserver für das [Tafeline Restaurant-Management-System (CMS)](https://github.com/stb-srv/tafeline-cms). Verwaltet, validiert und überwacht Lizenzen für registrierte CMS-Instanzen – mit signierten kryptografischen Tokens für sichere Echtzeit-Validierungen und zeitlich begrenzte Offline-Freischaltungen.
 
 ---
 
 ## Schnellstart (Produktion)
 
-### Einzeiler-Setup auf Ubuntu/Debian
+Zwei Skripte decken den gesamten Betrieb ab – für Ubuntu 22.04/24.04 und Debian 12, als `root` oder mit `sudo`:
+
+| Skript                   | Wann                                   | Was                                                                           |
+| ------------------------ | -------------------------------------- | ----------------------------------------------------------------------------- |
+| [`setup.sh`](setup.sh)   | Einmalig, auf einem frischen Server    | Installiert alles Nötige und startet den Server                               |
+| [`deploy.sh`](deploy.sh) | Bei jedem Update der laufenden Instanz | Holt den neuesten Stand, baut neu, startet neu – mit Backup und Auto-Rollback |
+
+### Erstinstallation: `setup.sh`
 
 ```bash
-git clone https://github.com/stb-srv/tafeline-licens
-cd tafeline-licens
-bash setup.sh
+sudo apt-get update && sudo apt-get install -y git
+sudo git clone https://github.com/stb-srv/tafeline-licens.git /opt/tafeline-licens
+sudo bash /opt/tafeline-licens/setup.sh
 ```
 
-Das Script installiert Node.js, nginx und richtet den systemd-Service ein. Es fragt nur nach Domain, Port und SSL. **Alle kryptografischen Secrets werden automatisch generiert.** Den Admin-Account erstellst du danach im Browser – kein manuelles Bearbeiten von Konfigurationsdateien nötig.
+Das Skript fragt nur Domain, Port und (optional) die E-Mail für Let's Encrypt ab und erledigt dann alles selbst:
+
+1. Systempakete (`git`, `openssl`, Build-Tools für `better-sqlite3`, `nginx`, bei HTTPS `certbot`)
+2. Node.js 22 (NodeSource)
+3. System-User `tafeline-licens` ohne Login-Shell
+4. Code nach `/opt/tafeline-licens`
+5. `.env` mit allen Secrets und dem RSA-Schlüsselpaar (nur wenn noch keine existiert)
+6. `npm ci` und Frontend-Build (`web/dist`)
+7. systemd-Service `tafeline-licens` mit Autostart und Härtung
+8. nginx als Reverse Proxy, Firewall-Regel (falls `ufw` aktiv ist), optional HTTPS per Let's Encrypt
+9. Funktionstest (`/status/json`)
+
+Zum Schluss steht die Setup-URL (`https://<domain>/setup`) in der Ausgabe – dort legst du im Browser den Superadmin an.
+
+Ohne Rückfragen (z. B. für Automatisierung):
+
+```bash
+sudo bash setup.sh --yes --domain licens.example.de --email admin@example.de
+```
+
+| Option              | Bedeutung                                                         |
+| ------------------- | ----------------------------------------------------------------- |
+| `--domain <host>`   | Domain oder IP (Standard: `localhost`)                            |
+| `--port <port>`     | Port des Node-Servers (Standard: `4000`)                          |
+| `--email <adresse>` | Aktiviert HTTPS per Let's Encrypt (nur mit echter Domain + nginx) |
+| `--no-nginx`        | Kein nginx; der Server lauscht direkt auf `--port`                |
+| `--dir <pfad>`      | Installationsverzeichnis (Standard: `/opt/tafeline-licens`)       |
+| `--branch <name>`   | Git-Branch (Standard: `main`)                                     |
+| `-y`, `--yes`       | Keine Rückfragen                                                  |
+
+`setup.sh` ist idempotent: Ein erneuter Lauf aktualisiert Pakete, Service und nginx, lässt aber `.env`, RSA-Schlüssel und Datenbank unangetastet.
+
+### Updates: `deploy.sh`
+
+```bash
+sudo bash /opt/tafeline-licens/deploy.sh
+```
+
+Ablauf: neue Version prüfen → Backup (`data/licens.db` per SQLite-Online-Backup, `.env`) nach `deploy-backups/` (die letzten 10 bleiben) → Service stoppen → `git` auf `origin/main` → `npm ci` + Frontend-Build → Service starten → Funktionstest. Startet die neue Version nicht, rollt das Skript automatisch auf die vorherige zurück und zeigt die letzten Logzeilen. Ist schon alles aktuell, passiert nichts.
+
+| Option            | Bedeutung                                         |
+| ----------------- | ------------------------------------------------- |
+| `--branch <name>` | Anderen Branch deployen (Standard: `main`)        |
+| `--force`         | Auch deployen, wenn schon der neueste Stand läuft |
+| `--no-backup`     | Backup überspringen (nicht empfohlen)             |
+
+Lokale Änderungen an versionierten Dateien werden überschrieben; vorher landet ein Patch im Backup-Ordner. Während des Updates ist der Server kurz (Dauer des Builds) nicht erreichbar.
+
+### Komplette Neuinstallation mit bestehenden Daten
+
+Auf dem neuen Server zuerst `setup.sh` ausführen, dann `.env` (enthält Secrets und RSA-Schlüssel) und `data/licens.db` aus dem Backup nach `/opt/tafeline-licens/` kopieren, Besitzer auf `tafeline-licens` setzen und `sudo systemctl restart tafeline-licens` ausführen. Die RSA-Schlüssel müssen erhalten bleiben, sonst werden bereits ausgestellte Lizenz-Tokens ungültig.
 
 ### Lokal / ohne setup.sh
 
@@ -80,7 +137,7 @@ npm start
 
 - **Node.js** >= 18.x
 - **Kein Datenbankserver nötig** — SQLite ist integriert
-- Ubuntu 22.04 / 24.04 oder Debian 12 (für `setup.sh`)
+- Ubuntu 22.04 / 24.04 oder Debian 12 (für `setup.sh` und `deploy.sh`)
 
 ---
 
@@ -139,13 +196,13 @@ web/src/
 
 ### Zentrale Änderungen — einmal ändern, überall wirksam
 
-| Was ändern | Datei |
-|---|---|
-| Logo-Bild / Logo-Link | `web/src/components/Header.astro` |
-| Nav-Styling (Hintergrund, Höhe, Blur) | `web/src/styles/global.css` → `nav { }` |
-| Footer-Copyright / Standard-Links | `web/src/components/Footer.astro` |
-| Footer-Styling | `web/src/styles/global.css` → `footer { }` |
-| Farben, Spacing, Typografie | `web/src/styles/tokens.css` |
+| Was ändern                            | Datei                                      |
+| ------------------------------------- | ------------------------------------------ |
+| Logo-Bild / Logo-Link                 | `web/src/components/Header.astro`          |
+| Nav-Styling (Hintergrund, Höhe, Blur) | `web/src/styles/global.css` → `nav { }`    |
+| Footer-Copyright / Standard-Links     | `web/src/components/Footer.astro`          |
+| Footer-Styling                        | `web/src/styles/global.css` → `footer { }` |
+| Farben, Spacing, Typografie           | `web/src/styles/tokens.css`                |
 
 ### Neue Seite erstellen
 
@@ -248,10 +305,10 @@ Selbstverwaltung: Profil, Domains, Rechnungsdownload. Login via `POST /api/porta
 ## Update
 
 ```bash
-bash update.sh
+sudo bash /opt/tafeline-licens/deploy.sh
 ```
 
-Sichert `.env` und Datenbank, holt die neueste Version von GitHub, installiert Dependencies und startet den Server neu.
+Details und Optionen: siehe [Updates: `deploy.sh`](#updates-deploysh).
 
 ---
 

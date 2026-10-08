@@ -1,412 +1,332 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  OPA-Santorini License Server – Setup Script
-#  Unterstützt: Ubuntu 22.04/24.04, Debian 12
-#  Läuft als root ODER als normaler User (sudo wird bei Bedarf verwendet)
+#  Tafeline License Server – setup.sh (Erstinstallation)
+#
+#  Richtet einen frischen Ubuntu-/Debian-Server komplett ein: Systempakete,
+#  Node.js, App-User, Code, Secrets (.env), Frontend-Build, systemd-Service,
+#  nginx und optional HTTPS (Let's Encrypt). Mehrfaches Ausführen ist
+#  gefahrlos – vorhandene .env und Datenbank bleiben unangetastet.
+#
+#  Aufruf (als root oder mit sudo):
+#    sudo bash setup.sh                       # interaktiv
+#    sudo bash setup.sh --yes --domain licens.example.de --email me@example.de
+#
+#  Optionen:
+#    --domain <host>   Domain oder IP des Servers (Standard: localhost)
+#    --port <port>     Port des Node-Servers (Standard: 4000)
+#    --email <adresse> Let's-Encrypt-Mail; aktiviert HTTPS (nur bei echter Domain)
+#    --no-nginx        Kein nginx einrichten (Server lauscht dann direkt auf --port)
+#    --dir <pfad>      Installationsverzeichnis (Standard: /opt/tafeline-licens)
+#    --branch <name>   Git-Branch (Standard: main)
+#    -y, --yes         Keine Rückfragen, Standardwerte übernehmen
+#    -h, --help        Diese Hilfe
 # =============================================================================
-set -euo pipefail
+set -Eeuo pipefail
 
-# ── Farben ────────────────────────────────────────────────────────────────────
+# ── Projektspezifische Werte ─────────────────────────────────────────────────
+APP_TITLE="Tafeline License Server"
+SERVICE="tafeline-licens"
+REPO_URL="https://github.com/stb-srv/tafeline-licens.git"
+DEFAULT_DIR="/opt/tafeline-licens"
+DEFAULT_PORT="4000"
+HEALTH_PATH="/status/json"
+NODE_MAJOR="22"
+MAX_BODY="10M"
+
+# ── Ausgabe-Helfer ───────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
-
+CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 ok()   { echo -e "${GREEN}✓${NC}  $*"; }
-info() { echo -e "${BLUE}ℹ${NC}  $*"; }
+info() { echo -e "${CYAN}ℹ${NC}  $*"; }
 warn() { echo -e "${YELLOW}⚠${NC}  $*"; }
 err()  { echo -e "${RED}✗${NC}  $*" >&2; }
-step() { echo -e "\n${BOLD}${CYAN}▶  $*${NC}"; }
-ask()  { echo -e "${YELLOW}?${NC}  $*"; }
+step() { echo -e "\n${BOLD}${CYAN}▶ $*${NC}"; }
+trap 'err "Abbruch in Zeile $LINENO (Befehl: $BASH_COMMAND)"' ERR
 
-# ── Root-Check & sudo-Helper ──────────────────────────────────────────────────
-IS_ROOT=false
-[[ $EUID -eq 0 ]] && IS_ROOT=true
+usage() { awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "$0"; }
 
-SUDO=""
-if ! $IS_ROOT; then
-    if command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
-        SUDO="sudo"
-    elif command -v sudo &>/dev/null; then
-        SUDO="sudo"
-        info "Dieses Script benötigt sudo-Rechte für Systemoperationen."
-    else
-        err "Kein sudo verfügbar und nicht root. Bitte als root ausführen."
-        exit 1
+# ── Argumente ────────────────────────────────────────────────────────────────
+DOMAIN=""; PORT=""; LE_EMAIL=""; WITH_NGINX="yes"; APP_DIR=""; BRANCH="main"; ASSUME_YES="no"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --domain)   DOMAIN="${2:?--domain braucht einen Wert}"; shift 2 ;;
+        --port)     PORT="${2:?--port braucht einen Wert}"; shift 2 ;;
+        --email)    LE_EMAIL="${2:?--email braucht einen Wert}"; shift 2 ;;
+        --no-nginx) WITH_NGINX="no"; shift ;;
+        --dir)      APP_DIR="${2:?--dir braucht einen Wert}"; shift 2 ;;
+        --branch)   BRANCH="${2:?--branch braucht einen Wert}"; shift 2 ;;
+        -y|--yes)   ASSUME_YES="yes"; shift ;;
+        -h|--help)  usage; exit 0 ;;
+        *) err "Unbekannte Option: $1 (siehe --help)"; exit 2 ;;
+    esac
+done
+
+# ── Root & Betriebssystem ────────────────────────────────────────────────────
+if [[ $EUID -ne 0 ]]; then
+    command -v sudo >/dev/null || { err "Bitte als root oder mit sudo ausführen."; exit 1; }
+    info "Starte neu mit sudo …"
+    exec sudo -E bash "$0" "$@"
+fi
+command -v apt-get >/dev/null || { err "Nur Ubuntu/Debian (apt) wird unterstützt."; exit 1; }
+export DEBIAN_FRONTEND=noninteractive
+
+INTERACTIVE="no"
+[[ "$ASSUME_YES" == "no" && -t 0 ]] && INTERACTIVE="yes"
+
+ask() { # ask <Frage> <Standard> -> Antwort (Standard bei Enter oder nicht-interaktiv)
+    local answer=""
+    if [[ "$INTERACTIVE" == "yes" ]]; then
+        read -r -p "?  $1 [$2]: " answer || true
     fi
+    echo "${answer:-$2}"
+}
+
+get_env() { # get_env <Datei> <Schlüssel>
+    [[ -f "$1" ]] && grep -E "^$2=" "$1" | head -n1 | cut -d= -f2- || true
+}
+
+set_env() { # set_env <Datei> <Schlüssel> <Wert>  (Wert ohne Zeilenumbrüche)
+    local file="$1" key="$2" value="$3" escaped
+    escaped=$(printf '%s' "$value" | sed -e 's/[\\&|]/\\&/g')
+    if grep -qE "^${key}=" "$file"; then
+        sed -i "s|^${key}=.*|${key}=${escaped}|" "$file"
+    else
+        printf '%s=%s\n' "$key" "$value" >> "$file"
+    fi
+}
+
+# ── Konfiguration ────────────────────────────────────────────────────────────
+APP_DIR="${APP_DIR:-$DEFAULT_DIR}"
+APP_USER="$SERVICE"
+APP_HOME="/var/lib/$SERVICE"
+ENV_FILE="$APP_DIR/.env"
+
+existing_domain=""
+if [[ -f "$ENV_FILE" ]]; then
+    existing_domain=$(get_env "$ENV_FILE" APP_URL | sed -E 's#^https?://##; s#:[0-9]+$##; s#/.*$##')
+    [[ -z "$PORT" ]] && PORT=$(get_env "$ENV_FILE" PORT)
+fi
+[[ -z "$DOMAIN" ]] && DOMAIN=$(ask "Domain oder IP des Servers" "${existing_domain:-localhost}")
+[[ -z "$PORT" ]] && PORT=$(ask "Port des Node-Servers" "$DEFAULT_PORT")
+
+[[ "$DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]] || { err "Ungültige Domain/IP: $DOMAIN"; exit 1; }
+[[ "$PORT" =~ ^[0-9]+$ && "$PORT" -ge 1 && "$PORT" -le 65535 ]] || { err "Ungültiger Port: $PORT"; exit 1; }
+[[ "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]] || { err "Ungültiger Branch: $BRANCH"; exit 1; }
+
+IS_REAL_DOMAIN="no"
+if [[ "$DOMAIN" == *.* && ! "$DOMAIN" =~ ^[0-9.]+$ ]]; then IS_REAL_DOMAIN="yes"; fi
+
+WITH_SSL="no"
+if [[ "$WITH_NGINX" == "yes" && "$IS_REAL_DOMAIN" == "yes" ]]; then
+    if [[ -z "$LE_EMAIL" && "$INTERACTIVE" == "yes" ]]; then
+        LE_EMAIL=$(ask "E-Mail für Let's Encrypt (leer = kein HTTPS)" "")
+    fi
+    [[ -n "$LE_EMAIL" ]] && WITH_SSL="yes"
+elif [[ -n "$LE_EMAIL" ]]; then
+    warn "HTTPS wird übersprungen (benötigt nginx und eine echte Domain, keine IP/localhost)."
+    LE_EMAIL=""
+fi
+if [[ "$WITH_SSL" == "yes" && ! "$LE_EMAIL" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+    err "Ungültige E-Mail-Adresse: $LE_EMAIL"; exit 1
 fi
 
-run_privileged() { $SUDO "$@"; }
+echo -e "\n${BOLD}${CYAN}$APP_TITLE – Setup${NC}"
+echo "  Verzeichnis : $APP_DIR"
+echo "  Service     : $SERVICE (User: $APP_USER)"
+echo "  Domain      : $DOMAIN   Port: $PORT"
+echo "  nginx       : $WITH_NGINX   HTTPS: $WITH_SSL   Branch: $BRANCH"
 
-# ── Banner ────────────────────────────────────────────────────────────────────
-clear
-echo -e "${BOLD}${CYAN}"
-echo "  ╔═══════════════════════════════════════════════════════╗"
-echo "  ║         Tafeline License Server – Setup                 ║"
-echo "  ╚═══════════════════════════════════════════════════════╝"
-echo -e "${NC}"
-echo "  Dieses Script installiert und konfiguriert den Server"
-echo "  vollständig: Node.js, nginx, systemd-Service."
-echo "  Alle Secrets werden automatisch generiert."
-echo "  Den Admin-Account richtest du danach im Browser ein."
-echo ""
+# ── 1. Systempakete ──────────────────────────────────────────────────────────
+step "1/9  Systempakete"
+apt-get update -qq
+apt-get install -y -qq ca-certificates curl git openssl build-essential python3 >/dev/null
+[[ "$WITH_NGINX" == "yes" ]] && apt-get install -y -qq nginx >/dev/null
+[[ "$WITH_SSL" == "yes" ]] && apt-get install -y -qq certbot python3-certbot-nginx >/dev/null
+ok "Pakete installiert"
 
-# ── Konfigurations-Variablen ──────────────────────────────────────────────────
-APP_DIR="/opt/tafeline-licens"
-APP_USER="tafeline-licens"
-NODE_VERSION="20"
-
-# ── Interaktive Eingabe ───────────────────────────────────────────────────────
-step "Konfiguration"
-
-echo ""
-ask "Domain/Hostname des Servers (z.B. licens.meinrestaurant.de):"
-read -r DOMAIN
-DOMAIN="${DOMAIN:-localhost}"
-
-ask "App-Verzeichnis [${APP_DIR}]:"
-read -r INPUT_DIR
-APP_DIR="${INPUT_DIR:-$APP_DIR}"
-
-ask "Systemd-Service-User [${APP_USER}] (Enter = neuen User anlegen, 'root' = als root laufen):"
-read -r INPUT_USER
-APP_USER="${INPUT_USER:-$APP_USER}"
-
-ask "Port für Node.js [4000]:"
-read -r APP_PORT
-APP_PORT="${APP_PORT:-4000}"
-
-ask "Nginx installieren und konfigurieren? [J/n]:"
-read -r SETUP_NGINX
-SETUP_NGINX="${SETUP_NGINX:-J}"
-
-ask "SSL/HTTPS mit Let's Encrypt einrichten? (nur bei echter Domain) [j/N]:"
-read -r SETUP_SSL
-SETUP_SSL="${SETUP_SSL:-N}"
-
-if [[ "${SETUP_SSL^^}" == "J" ]]; then
-    ask "E-Mail für Let's Encrypt Zertifikat:"
-    read -r LE_EMAIL
+# ── 2. Node.js ───────────────────────────────────────────────────────────────
+step "2/9  Node.js ${NODE_MAJOR}"
+current_major=0
+command -v node >/dev/null && current_major=$(node -p 'process.versions.node.split(".")[0]')
+if [[ "$current_major" -lt "$NODE_MAJOR" ]]; then
+    curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - >/dev/null
+    apt-get install -y -qq nodejs >/dev/null
 fi
+ok "Node.js $(node -v), npm $(npm -v)"
 
-echo ""
-step "Repository"
-ask "Git-Repository-URL [aktuelle Verzeichnis kopieren / leer = lokale Dateien]:"
-read -r GIT_REPO
-GIT_REPO="${GIT_REPO:-}"
+# npm löst github:-Abhängigkeiten (@tafeline/plans) im Lockfile als ssh:// auf –
+# auf einem frischen Server gibt es keinen SSH-Key, daher per HTTPS umleiten.
+git config --system --unset-all url."https://github.com/".insteadOf 2>/dev/null || true
+git config --system --add url."https://github.com/".insteadOf "ssh://git@github.com/"
+git config --system --add url."https://github.com/".insteadOf "git@github.com:"
 
-echo ""
-echo -e "${BOLD}Zusammenfassung:${NC}"
-echo "  App-Verzeichnis : $APP_DIR"
-echo "  Domain          : $DOMAIN"
-echo "  Port            : $APP_PORT"
-echo "  Service-User    : $APP_USER"
-echo "  Nginx           : ${SETUP_NGINX^^}"
-echo "  SSL             : ${SETUP_SSL^^}"
-[[ -n "$GIT_REPO" ]] && echo "  Repository      : $GIT_REPO"
-echo ""
-ask "Fortfahren? [J/n]:"
-read -r CONFIRM
-[[ "${CONFIRM:-J}" =~ ^[Nn] ]] && { info "Abgebrochen."; exit 0; }
-
-# ── System-Pakete ─────────────────────────────────────────────────────────────
-step "System-Pakete aktualisieren"
-run_privileged apt-get update -qq
-run_privileged apt-get install -y -qq curl git openssl ca-certificates
-ok "Basispakete installiert"
-
-# ── Node.js ───────────────────────────────────────────────────────────────────
-step "Node.js ${NODE_VERSION} prüfen/installieren"
-
-if command -v node &>/dev/null; then
-    INSTALLED_NODE=$(node --version | cut -d'v' -f2 | cut -d'.' -f1)
-    if [[ "$INSTALLED_NODE" -ge "$NODE_VERSION" ]]; then
-        ok "Node.js $(node --version) bereits installiert"
-    else
-        warn "Node.js $(node --version) zu alt – aktualisiere auf v${NODE_VERSION}..."
-        curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | run_privileged bash -
-        run_privileged apt-get install -y nodejs
-        ok "Node.js $(node --version) installiert"
-    fi
+# ── 3. App-User ──────────────────────────────────────────────────────────────
+step "3/9  Service-User '$APP_USER'"
+if ! id "$APP_USER" &>/dev/null; then
+    useradd --system --home-dir "$APP_HOME" --create-home --shell /usr/sbin/nologin "$APP_USER"
+    ok "User angelegt"
 else
-    info "Node.js wird installiert..."
-    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | run_privileged bash -
-    run_privileged apt-get install -y nodejs
-    ok "Node.js $(node --version) installiert"
+    ok "User existiert bereits"
 fi
+as_app() { (cd "$APP_DIR" && runuser -u "$APP_USER" -- env HOME="$APP_HOME" "$@"); }
 
-# ── Service-User anlegen ──────────────────────────────────────────────────────
-if [[ "$APP_USER" != "root" ]]; then
-    step "Service-User '${APP_USER}'"
-    if id "$APP_USER" &>/dev/null; then
-        ok "User '${APP_USER}' existiert bereits"
-    else
-        run_privileged useradd --system --shell /bin/false --home-dir "$APP_DIR" --create-home "$APP_USER"
-        ok "User '${APP_USER}' angelegt"
-    fi
-fi
-
-# ── App-Verzeichnis vorbereiten ───────────────────────────────────────────────
-step "App-Verzeichnis: ${APP_DIR}"
-
-run_privileged mkdir -p "$APP_DIR"
-run_privileged mkdir -p "$APP_DIR/data"
-run_privileged mkdir -p "$APP_DIR/storage/invoices"
-run_privileged mkdir -p "$APP_DIR/logs"
-
-# ── Code deployen ─────────────────────────────────────────────────────────────
-step "Anwendungscode"
-
-if [[ -n "$GIT_REPO" ]]; then
-    if [[ -d "$APP_DIR/.git" ]]; then
-        info "Repository bereits vorhanden – aktualisiere..."
-        run_privileged git -C "$APP_DIR" pull
-    else
-        run_privileged git clone "$GIT_REPO" "$APP_DIR"
-    fi
-    ok "Repository geklont/aktualisiert"
+# ── 4. Code ──────────────────────────────────────────────────────────────────
+step "4/9  Code nach $APP_DIR"
+if [[ -d "$APP_DIR/.git" ]]; then
+    chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+    as_app git fetch --quiet origin "$BRANCH"
+    as_app git checkout --quiet --force -B "$BRANCH" "origin/$BRANCH"
+    ok "Repository aktualisiert ($(as_app git rev-parse --short HEAD))"
+elif [[ -e "$APP_DIR" && -n "$(ls -A "$APP_DIR" 2>/dev/null)" ]]; then
+    err "$APP_DIR existiert und ist kein Git-Checkout. Bitte leeren oder --dir nutzen."; exit 1
 else
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    if [[ "$SCRIPT_DIR" != "$APP_DIR" ]]; then
-        info "Kopiere Dateien von ${SCRIPT_DIR} nach ${APP_DIR}..."
-        run_privileged rsync -a --exclude='.git' --exclude='node_modules' \
-            --exclude='data' --exclude='storage' --exclude='.env' \
-            "${SCRIPT_DIR}/" "${APP_DIR}/"
-        ok "Dateien kopiert"
-    else
-        ok "Bereits im App-Verzeichnis"
-    fi
+    mkdir -p "$APP_DIR"
+    chown "$APP_USER:$APP_USER" "$APP_DIR"
+    as_app git clone --quiet --branch "$BRANCH" "$REPO_URL" .
+    ok "Repository geklont ($(as_app git rev-parse --short HEAD))"
 fi
 
-# ── npm install ───────────────────────────────────────────────────────────────
-step "Node.js Abhängigkeiten installieren"
-run_privileged bash -c "cd '${APP_DIR}' && npm install --omit=dev --silent"
-ok "npm install abgeschlossen"
-
-# ── Secrets generieren ────────────────────────────────────────────────────────
-step "Sicherheits-Secrets generieren"
-
-ADMIN_SECRET=$(openssl rand -hex 48)
-HMAC_SECRET=$(openssl rand -hex 48)
-PORTAL_SECRET=$(openssl rand -hex 48)
-SETUP_TOKEN=$(openssl rand -hex 32)
-
-# RSA Key-Pair für JWT
-RSA_PRIVATE=$(openssl genrsa 2048 2>/dev/null)
-RSA_PUBLIC=$(echo "$RSA_PRIVATE" | openssl rsa -pubout 2>/dev/null)
-
-# Einzeilig für .env (Zeilenumbrüche → \n)
-RSA_PRIVATE_INLINE=$(echo "$RSA_PRIVATE" | awk '{printf "%s\\n", $0}')
-RSA_PUBLIC_INLINE=$(echo "$RSA_PUBLIC"  | awk '{printf "%s\\n", $0}')
-
-ok "Secrets generiert (RSA 2048, AES-256)"
-
-# ── .env erstellen ────────────────────────────────────────────────────────────
-step ".env Konfigurationsdatei"
-
-run_privileged bash -c "cat > '${APP_DIR}/.env'" <<EOF
-# Tafeline License Server – Konfiguration
-# Generiert am $(date '+%Y-%m-%d %H:%M:%S')
-
-PORT=${APP_PORT}
-
-DB_PATH=${APP_DIR}/data/licens.db
-STORAGE_PATH=${APP_DIR}/storage
-
-ADMIN_SECRET=${ADMIN_SECRET}
-HMAC_SECRET=${HMAC_SECRET}
-PORTAL_SECRET=${PORTAL_SECRET}
-
-RSA_PRIVATE_KEY=${RSA_PRIVATE_INLINE}
-RSA_PUBLIC_KEY=${RSA_PUBLIC_INLINE}
-
-SETUP_TOKEN=${SETUP_TOKEN}
-
-PORTAL_URL=https://${DOMAIN}
-APP_URL=https://${DOMAIN}
-
-CORS_ORIGINS=https://${DOMAIN}
-
-# SMTP (optional – über Admin-Panel konfigurierbar)
-# SMTP_HOST=
-# SMTP_PORT=587
-# SMTP_SECURE=false
-# SMTP_USER=
-# SMTP_PASS=
-# SMTP_FROM=noreply@${DOMAIN}
-EOF
-
-ok ".env erstellt"
-
-# ── Berechtigungen setzen ─────────────────────────────────────────────────────
-step "Verzeichnis-Berechtigungen"
-
-if [[ "$APP_USER" == "root" ]]; then
-    run_privileged chown -R root:root "$APP_DIR"
-    run_privileged chmod 750 "$APP_DIR"
-    run_privileged chmod 700 "$APP_DIR/data"
-    run_privileged chmod 700 "$APP_DIR/storage"
-    run_privileged chmod 600 "$APP_DIR/.env"
-else
-    run_privileged chown -R "${APP_USER}:${APP_USER}" "$APP_DIR"
-    run_privileged chmod 750 "$APP_DIR"
-    run_privileged chmod 700 "$APP_DIR/data"
-    run_privileged chmod 700 "$APP_DIR/storage"
-    run_privileged chmod 600 "$APP_DIR/.env"
-    # Logs für eventuelles Log-Forwarding
-    run_privileged chmod 755 "$APP_DIR/logs"
+# ── 5. Konfiguration (.env) ──────────────────────────────────────────────────
+step "5/9  Konfiguration (.env, Secrets, RSA-Schlüssel)"
+ENV_EXISTED="no"; [[ -f "$ENV_FILE" ]] && ENV_EXISTED="yes"
+# init.js legt .env mit allen Secrets + RSA-Schlüsselpaar an bzw. ergänzt fehlende Werte.
+as_app node init.js >/dev/null
+SCHEME="http"
+URL_BASE="$SCHEME://$DOMAIN"
+[[ "$WITH_NGINX" == "no" ]] && URL_BASE="$SCHEME://$DOMAIN:$PORT"
+set_env "$ENV_FILE" PORT "$PORT"
+# URLs nur bei neuer .env oder geänderter Domain setzen – manuelle Anpassungen bleiben sonst erhalten
+if [[ "$ENV_EXISTED" == "no" || "$DOMAIN" != "$existing_domain" ]]; then
+    set_env "$ENV_FILE" APP_URL "$URL_BASE"
+    set_env "$ENV_FILE" PORTAL_URL "$URL_BASE"
+    set_env "$ENV_FILE" CORS_ORIGINS "$URL_BASE"
 fi
+chown "$APP_USER:$APP_USER" "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+mkdir -p "$APP_DIR/data" "$APP_DIR/storage" "$APP_DIR/logs"
+chown -R "$APP_USER:$APP_USER" "$APP_DIR/data" "$APP_DIR/storage" "$APP_DIR/logs"
+ok ".env bereit (bestehende Werte bleiben erhalten)"
 
-ok "Berechtigungen gesetzt"
+# ── 6. Abhängigkeiten & Frontend ─────────────────────────────────────────────
+step "6/9  Abhängigkeiten installieren & Frontend bauen (dauert ein paar Minuten)"
+as_app npm ci --omit=dev --no-audit --no-fund --loglevel=error
+as_app npm --prefix web ci --no-audit --no-fund --loglevel=error
+as_app npm --prefix web run build --silent
+ok "Dependencies installiert, Frontend gebaut"
 
-# ── systemd Service ───────────────────────────────────────────────────────────
-step "systemd Service einrichten"
-
-if [[ "$APP_USER" == "root" ]]; then
-    SERVICE_USER_LINE=""
-    SERVICE_GROUP_LINE=""
-else
-    SERVICE_USER_LINE="User=${APP_USER}"
-    SERVICE_GROUP_LINE="Group=${APP_USER}"
-fi
-
-run_privileged bash -c "cat > /etc/systemd/system/licens-srv.service" <<EOF
+# ── 7. systemd ───────────────────────────────────────────────────────────────
+step "7/9  systemd-Service"
+cat > "/etc/systemd/system/${SERVICE}.service" <<EOF
 [Unit]
-Description=Tafeline License Server
-Documentation=https://github.com/stb-srv/tafeline-licens
-After=network.target
+Description=$APP_TITLE
+After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=${APP_DIR}
-ExecStartPre=/usr/bin/node ${APP_DIR}/init.js
-ExecStart=/usr/bin/node ${APP_DIR}/server.js
+User=$APP_USER
+Group=$APP_USER
+WorkingDirectory=$APP_DIR
+Environment=NODE_ENV=production
+ExecStart=$(command -v node) server.js
 Restart=always
 RestartSec=5
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=licens-srv
-${SERVICE_USER_LINE}
-${SERVICE_GROUP_LINE}
+SyslogIdentifier=$SERVICE
+LimitNOFILE=65535
 
-# Sicherheits-Härtung
+# Härtung: Schreibzugriff nur im App-Verzeichnis
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=${APP_DIR}/data ${APP_DIR}/storage ${APP_DIR}/logs
-
-# Ressourcen-Limits
-LimitNOFILE=65535
-MemoryMax=512M
+ProtectHome=read-only
+ReadWritePaths=$APP_DIR
 
 [Install]
 WantedBy=multi-user.target
 EOF
+systemctl daemon-reload
+systemctl enable "$SERVICE" >/dev/null 2>&1
+systemctl restart "$SERVICE"
+ok "Service '$SERVICE' gestartet, Autostart aktiv"
 
-run_privileged systemctl daemon-reload
-run_privileged systemctl enable licens-srv.service
-ok "systemd Service erstellt und aktiviert"
-
-# ── nginx ─────────────────────────────────────────────────────────────────────
-if [[ "${SETUP_NGINX^^}" == "J" ]]; then
-    step "nginx installieren und konfigurieren"
-
-    run_privileged apt-get install -y -qq nginx
-
-    run_privileged bash -c "cat > /etc/nginx/sites-available/licens-srv" <<EOF
+# ── 8. nginx, Firewall, HTTPS ────────────────────────────────────────────────
+step "8/9  nginx / Firewall / HTTPS"
+if [[ "$WITH_NGINX" == "yes" ]]; then
+    NGINX_CONF="/etc/nginx/sites-available/$SERVICE"
+    server_name="$DOMAIN"; [[ "$DOMAIN" == "localhost" || "$DOMAIN" =~ ^[0-9.]+$ ]] && server_name="_"
+    if [[ -f "$NGINX_CONF" ]] && grep -q "ssl_certificate" "$NGINX_CONF"; then
+        info "nginx-Konfiguration wird von certbot verwaltet – bleibt unverändert"
+    else
+        cat > "$NGINX_CONF" <<EOF
 server {
     listen 80;
-    server_name ${DOMAIN};
+    server_name $server_name;
+    client_max_body_size $MAX_BODY;
 
-    # Weiterleitungs-Logs
-    access_log /var/log/nginx/licens-srv.access.log;
-    error_log  /var/log/nginx/licens-srv.error.log;
-
-    # Sicherheits-Header
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-
-    # Proxy-Einstellungen
     location / {
-        proxy_pass         http://127.0.0.1:${APP_PORT};
+        proxy_pass         http://127.0.0.1:$PORT;
         proxy_http_version 1.1;
         proxy_set_header   Upgrade \$http_upgrade;
-        proxy_set_header   Connection 'upgrade';
+        proxy_set_header   Connection "upgrade";
         proxy_set_header   Host \$host;
         proxy_set_header   X-Real-IP \$remote_addr;
         proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
-
-        # Timeouts
-        proxy_connect_timeout 60s;
-        proxy_send_timeout    60s;
-        proxy_read_timeout    60s;
-
-        # Upload-Größe
-        client_max_body_size 10M;
+        proxy_read_timeout 60s;
     }
 }
 EOF
+    fi
+    ln -sf "$NGINX_CONF" "/etc/nginx/sites-enabled/$SERVICE"
+    rm -f /etc/nginx/sites-enabled/default
+    nginx -t >/dev/null 2>&1 || { nginx -t; err "nginx-Konfiguration fehlerhaft"; exit 1; }
+    systemctl enable nginx >/dev/null 2>&1
+    systemctl reload nginx 2>/dev/null || systemctl restart nginx
+    ok "nginx leitet $server_name auf Port $PORT"
+fi
 
-    # Alte Default-Config deaktivieren
-    run_privileged rm -f /etc/nginx/sites-enabled/default
-    run_privileged ln -sf /etc/nginx/sites-available/licens-srv /etc/nginx/sites-enabled/licens-srv
+if command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
+    if [[ "$WITH_NGINX" == "yes" ]]; then ufw allow 'Nginx Full' >/dev/null; else ufw allow "$PORT/tcp" >/dev/null; fi
+    ok "Firewall (ufw) angepasst"
+fi
 
-    run_privileged nginx -t
-    run_privileged systemctl enable nginx
-    run_privileged systemctl restart nginx
-    ok "nginx konfiguriert"
-
-    # ── Let's Encrypt ──────────────────────────────────────────────────────────
-    if [[ "${SETUP_SSL^^}" == "J" && -n "${LE_EMAIL:-}" && "$DOMAIN" != "localhost" ]]; then
-        step "Let's Encrypt SSL-Zertifikat"
-        run_privileged apt-get install -y -qq certbot python3-certbot-nginx
-        run_privileged certbot --nginx \
-            --non-interactive \
-            --agree-tos \
-            --email "$LE_EMAIL" \
-            -d "$DOMAIN" \
-            --redirect
-        ok "SSL-Zertifikat eingerichtet"
+if [[ "$WITH_SSL" == "yes" ]]; then
+    if certbot --nginx --non-interactive --agree-tos --redirect -m "$LE_EMAIL" -d "$DOMAIN"; then
+        set_env "$ENV_FILE" APP_URL "https://$DOMAIN"
+        set_env "$ENV_FILE" PORTAL_URL "https://$DOMAIN"
+        set_env "$ENV_FILE" CORS_ORIGINS "https://$DOMAIN"
+        SCHEME="https"
+        systemctl restart "$SERVICE"
+        ok "HTTPS aktiv (Zertifikat erneuert sich automatisch)"
+    else
+        warn "certbot fehlgeschlagen (zeigt die Domain schon auf diesen Server?)."
+        warn "Später nachholen: sudo bash setup.sh --domain $DOMAIN --email $LE_EMAIL"
     fi
 fi
 
-# ── Service starten ───────────────────────────────────────────────────────────
-step "License Server starten"
-run_privileged systemctl start licens-srv.service
-
-# Kurz warten bis der Server hochgefahren ist
-info "Warte auf Server-Start..."
-for i in {1..15}; do
-    if curl -s "http://127.0.0.1:${APP_PORT}/api/status" &>/dev/null; then
-        ok "Server antwortet"
-        break
-    fi
-    sleep 1
-    [[ $i -eq 15 ]] && { err "Server startet nicht – prüfe: journalctl -u licens-srv.service -n 50"; exit 1; }
+# ── 9. Prüfung ───────────────────────────────────────────────────────────────
+step "9/9  Funktionstest"
+healthy="no"
+for _ in $(seq 1 30); do
+    if curl -fs -o /dev/null "http://127.0.0.1:$PORT$HEALTH_PATH"; then healthy="yes"; break; fi
+    sleep 2
 done
-
-# ── Abschluss ─────────────────────────────────────────────────────────────────
-echo ""
-echo -e "${BOLD}${GREEN}╔═══════════════════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}${GREEN}║       Tafeline License Server – Installation fertig!    ║${NC}"
-echo -e "${BOLD}${GREEN}╚═══════════════════════════════════════════════════════╝${NC}"
-echo ""
-echo -e "  ${BOLD}${CYAN}▶  Jetzt Setup im Browser abschließen:${NC}"
-echo ""
-if [[ "${SETUP_SSL^^}" == "J" && "$DOMAIN" != "localhost" ]]; then
-    echo -e "     ${BOLD}https://${DOMAIN}/setup${NC}"
-else
-    echo -e "     ${BOLD}http://${DOMAIN}/setup${NC}"
-    echo -e "     ${BOLD}http://localhost:${APP_PORT}/setup${NC}  (lokal)"
+if [[ "$healthy" != "yes" ]]; then
+    err "Server antwortet nicht. Letzte Logzeilen:"
+    journalctl -u "$SERVICE" -n 30 --no-pager || true
+    exit 1
 fi
-echo ""
-echo -e "  ${BOLD}Service-Befehle:${NC}"
-echo "    systemctl status  licens-srv.service"
-echo "    systemctl restart licens-srv.service"
-echo "    journalctl -u licens-srv.service -f"
-echo ""
-echo -e "  ${BOLD}Konfiguration:${NC}  ${APP_DIR}/.env"
-echo -e "  ${BOLD}Datenbank:${NC}      ${APP_DIR}/data/licens.db"
+ok "Server läuft und antwortet auf $HEALTH_PATH"
+as_app git rev-parse HEAD > "$APP_DIR/.deployed-commit"; chown "$APP_USER:$APP_USER" "$APP_DIR/.deployed-commit"
+
+FINAL_URL="$SCHEME://$DOMAIN"
+[[ "$WITH_NGINX" == "no" ]] && FINAL_URL="$SCHEME://$DOMAIN:$PORT"
+echo -e "\n${BOLD}${GREEN}✅ $APP_TITLE ist installiert.${NC}\n"
+echo -e "  ${BOLD}Nächster Schritt:${NC} Admin-Account im Browser anlegen"
+echo -e "    ${BOLD}$FINAL_URL/setup${NC}\n"
+echo "  RSA-Public-Key (nur falls ein CMS LICENSE_PUBLIC_KEY braucht):  grep '^RSA_PUBLIC_KEY=' $ENV_FILE"
+echo "  Logs:      journalctl -fu $SERVICE"
+echo "  Status:    systemctl status $SERVICE"
+echo "  Updates:   sudo bash $APP_DIR/deploy.sh"
+echo "  Secrets:   $ENV_FILE  (Backup aufbewahren!)"
 echo ""

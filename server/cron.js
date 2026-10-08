@@ -4,6 +4,8 @@ import { addAuditLog } from './helpers.js';
 import { fireWebhook } from './webhook.js';
 import { createInvoiceFromLicense } from './invoiceHelper.js';
 import { runBackup, rotateBackups } from './backup.js';
+import { sendAlert } from './alerts.js';
+import logger from './logger.js';
 
 export async function runExpiryCron() {
     try {
@@ -79,7 +81,7 @@ export async function runExpiryCron() {
                     email,
                 });
             } catch (e) {
-                console.warn(`📧 Ablauf-Mail fehlgeschlagen für ${lic.license_key}:`, e.message);
+                logger.warn({ err: e }, `📧 Ablauf-Mail fehlgeschlagen für ${lic.license_key}:`);
             }
         }
 
@@ -87,12 +89,12 @@ export async function runExpiryCron() {
             `UPDATE licenses SET status = 'expired' WHERE status = 'active' AND expires_at < datetime('now')`
         );
         if (result.affectedRows > 0) {
-            console.log(`🕐 ${result.affectedRows} Lizenz(en) auf 'expired' gesetzt.`);
+            logger.info(`🕐 ${result.affectedRows} Lizenz(en) auf 'expired' gesetzt.`);
             await addAuditLog('licenses_auto_expired', { count: result.affectedRows });
             await fireWebhook('licenses.auto_expired', { count: result.affectedRows });
         }
     } catch (e) {
-        console.error('Expiry-Cron Fehler:', e.message);
+        logger.error({ err: e }, 'Expiry-Cron Fehler:');
     }
 }
 
@@ -102,23 +104,23 @@ export async function runNonceCleanup() {
             Date.now() - 2 * 60 * 60 * 1000,
         ]);
         if (nonceResult.affectedRows > 0)
-            console.log(`🧹 ${nonceResult.affectedRows} abgelaufene Nonce(s) bereinigt.`);
+            logger.info(`🧹 ${nonceResult.affectedRows} abgelaufene Nonce(s) bereinigt.`);
 
         const [sessResult] = db.query(
             `DELETE FROM customer_sessions WHERE expires_at < datetime('now') OR revoked = 1`
         );
         if (sessResult.affectedRows > 0)
-            console.log(`🧹 ${sessResult.affectedRows} abgelaufene Kunden-Session(s) bereinigt.`);
+            logger.info(`🧹 ${sessResult.affectedRows} abgelaufene Kunden-Session(s) bereinigt.`);
 
         const [adminSessResult] = db.query(
             `DELETE FROM admin_sessions WHERE expires_at < datetime('now') OR revoked = 1`
         );
         if (adminSessResult.affectedRows > 0)
-            console.log(
+            logger.info(
                 `🧹 ${adminSessResult.affectedRows} abgelaufene Admin-Session(s) bereinigt.`
             );
     } catch (e) {
-        console.error('Nonce/Session-Cleanup Fehler:', e.message);
+        logger.error({ err: e }, 'Nonce/Session-Cleanup Fehler:');
     }
 }
 
@@ -198,21 +200,21 @@ export async function runOverdueInvoiceCron() {
                             invoice_url: `${portalUrl}/portal.html?tab=invoices`,
                         });
                     } catch (mailErr) {
-                        console.warn(
-                            `📧 Dunning-Mail fehlgeschlagen für ${invoice.invoice_number}:`,
-                            mailErr.message
+                        logger.warn(
+                            { err: mailErr },
+                            `📧 Dunning-Mail fehlgeschlagen für ${invoice.invoice_number}:`
                         );
                     }
                 }
             } catch (err) {
-                console.error(
-                    `Fehler bei Dunning für Rechnung ${invoice.invoice_number}:`,
-                    err.message
+                logger.error(
+                    { err: err },
+                    `Fehler bei Dunning für Rechnung ${invoice.invoice_number}:`
                 );
             }
         }
     } catch (e) {
-        console.error('Overdue-Invoice-Cron Fehler:', e.message);
+        logger.error({ err: e }, 'Overdue-Invoice-Cron Fehler:');
     }
 }
 
@@ -240,16 +242,16 @@ export async function runAutoInvoiceCron() {
                     invoice_id: invoiceId,
                     customer_id: lic.customer_id,
                 });
-                console.log(`🧾 Auto-Rechnung (Draft) erstellt für Lizenz: ${lic.license_key}`);
+                logger.info(`🧾 Auto-Rechnung (Draft) erstellt für Lizenz: ${lic.license_key}`);
             } catch (err) {
-                console.error(
-                    `Fehler bei Auto-Rechnung für Lizenz ${lic.license_key}:`,
-                    err.message
+                logger.error(
+                    { err: err },
+                    `Fehler bei Auto-Rechnung für Lizenz ${lic.license_key}:`
                 );
             }
         }
     } catch (e) {
-        console.error('Auto-Invoice-Cron Fehler:', e.message);
+        logger.error({ err: e }, 'Auto-Invoice-Cron Fehler:');
     }
 }
 
@@ -257,10 +259,14 @@ export async function runBackupCron() {
     try {
         const dest = await runBackup();
         const removed = rotateBackups();
-        if (removed > 0) console.log(`🗑️  Backup-Rotation: ${removed} alte Backups gelöscht.`);
+        if (removed > 0) logger.info(`🗑️  Backup-Rotation: ${removed} alte Backups gelöscht.`);
         return dest;
     } catch (e) {
-        console.error('❌ Backup-Cron Fehler:', e.message);
+        logger.error({ err: e }, '❌ Backup-Cron Fehler:');
+        await sendAlert(
+            'Backup fehlgeschlagen',
+            `Das tägliche Datenbank-Backup ist fehlgeschlagen: ${e.message}`
+        );
     }
 }
 
@@ -284,10 +290,10 @@ export async function createInvoiceForLicense(licenseId) {
             license_key: licenseId,
             invoice_id: invoiceId,
         });
-        console.log(`🧾 Auto-Rechnung (Draft) erstellt für Lizenz bei Erstellung: ${licenseId}`);
+        logger.info(`🧾 Auto-Rechnung (Draft) erstellt für Lizenz bei Erstellung: ${licenseId}`);
         return invoiceId;
     } catch (err) {
-        console.error(`Fehler bei Auto-Rechnung für Lizenz ${licenseId}:`, err.message);
+        logger.error({ err: err }, `Fehler bei Auto-Rechnung für Lizenz ${licenseId}:`);
         throw err;
     }
 }
@@ -301,12 +307,12 @@ export async function createInvoiceForRenewal(licenseId) {
             invoice_id: invoiceId,
             type: 'renewal',
         });
-        console.log(
+        logger.info(
             `🧾 Auto-Rechnung (Renewal) erstellt für Lizenz bei Verlängerung: ${licenseId}`
         );
         return invoiceId;
     } catch (err) {
-        console.error(`Fehler bei Auto-Rechnung (Renewal) für Lizenz ${licenseId}:`, err.message);
+        logger.error({ err: err }, `Fehler bei Auto-Rechnung (Renewal) für Lizenz ${licenseId}:`);
         throw err;
     }
 }

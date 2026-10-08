@@ -18,6 +18,7 @@ const { title = 'Tafeline', description = '', bodyClass = '' } = Astro.props;
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <title>{title}</title>
         {description && <meta name="description" content={description} />}
 
@@ -43,5 +44,6 @@ const { title = 'Tafeline', description = '', bodyClass = '' } = Astro.props;
     </head>
     <body class={bodyClass}>
         <slot />
+        <script is:inline src="/particles.js" defer></script>
     </body>
 </html>

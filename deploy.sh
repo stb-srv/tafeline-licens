@@ -1,263 +1,199 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+# =============================================================================
+#  Tafeline License Server – deploy.sh (Update der laufenden Installation)
+#
+#  Holt den neuesten Stand aus GitHub, sichert vorher Datenbank und .env,
+#  installiert Abhängigkeiten, baut das Frontend und startet den Service neu.
+#  Schlägt der Start fehl, wird automatisch auf die vorherige Version
+#  zurückgerollt. Ist nichts Neues da, passiert nichts (außer mit --force).
+#
+#  Aufruf (als root oder mit sudo), aus dem Installationsverzeichnis:
+#    sudo bash deploy.sh
+#
+#  Optionen:
+#    --branch <name>   Branch deployen (Standard: main)
+#    --force           Auch deployen, wenn schon der neueste Stand läuft
+#    --no-backup       Kein Backup vor dem Update (nicht empfohlen)
+#    -h, --help        Diese Hilfe
+# =============================================================================
 
-# ============================================================
-#  OPA! Santorini — License Server Deploy Script v2.1
-#  Ubuntu 22.04 / 24.04 / 25.04 | Als root oder mit sudo
-#  Nutzung: bash deploy.sh
-# ============================================================
+# Alles steckt in main(): Bash liest Skripte beim Ausführen nach – würde das
+# Update dieses Skript selbst ersetzen, könnte sonst mitten im Lauf Unsinn passieren.
+main() {
+set -Eeuo pipefail
 
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+# ── Projektspezifische Werte ─────────────────────────────────────────────────
+APP_TITLE="Tafeline License Server"
+SERVICE="tafeline-licens"
+DEFAULT_PORT="4000"
+HEALTH_PATH="/status/json"
+DB_DEFAULT="data/licens.db"
+EXTRA_BACKUP_FILES=()            # weitere Dateien relativ zum App-Verzeichnis
 
-APP_DIR="/opt/licens-srv"
-APP_USER="licens-srv"
-GITHUB_REPO="stb-srv/licens-srv_OPA-Santorini"
-SERVICE_NAME="licens-srv"
-PORT=4000
+# ── Ausgabe-Helfer ───────────────────────────────────────────────────────────
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
+ok()   { echo -e "${GREEN}✓${NC}  $*"; }
+info() { echo -e "${CYAN}ℹ${NC}  $*"; }
+warn() { echo -e "${YELLOW}⚠${NC}  $*"; }
+err()  { echo -e "${RED}✗${NC}  $*" >&2; }
+step() { echo -e "\n${BOLD}${CYAN}▶ $*${NC}"; }
+trap 'err "Abbruch in Zeile $LINENO (Befehl: $BASH_COMMAND)"' ERR
 
-echo -e ""
-echo -e "${BOLD}${CYAN}🏛️  OPA! Santorini — License Server Deploy v2.1${NC}"
-echo -e "${CYAN}$(printf '═%.0s' {1..55})${NC}\n"
+SCRIPT="${BASH_SOURCE[0]}"
+usage() { awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "$SCRIPT"; }
 
-# ── Root-Check ─────────────────────────────────────────────────────────
-if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}✗ Bitte als root oder mit sudo ausführen!${NC}"
-    exit 1
+# ── Argumente ────────────────────────────────────────────────────────────────
+BRANCH="main"; FORCE="no"; DO_BACKUP="yes"; ORIG_ARGS=("$@")
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --branch)    BRANCH="${2:?--branch braucht einen Wert}"; shift 2 ;;
+        --force)     FORCE="yes"; shift ;;
+        --no-backup) DO_BACKUP="no"; shift ;;
+        -h|--help)   usage; exit 0 ;;
+        *) err "Unbekannte Option: $1 (siehe --help)"; exit 2 ;;
+    esac
+done
+[[ "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]] || { err "Ungültiger Branch: $BRANCH"; exit 1; }
+
+# ── Root ─────────────────────────────────────────────────────────────────────
+if [[ $EUID -ne 0 ]]; then
+    command -v sudo >/dev/null || { err "Bitte als root oder mit sudo ausführen."; exit 1; }
+    info "Starte neu mit sudo …"
+    exec sudo -E bash "$SCRIPT" "${ORIG_ARGS[@]}"
 fi
 
-# ── GitHub Token abfragen ────────────────────────────────────────────────
-echo -e "${BOLD}[0/8] GitHub Authentifizierung...${NC}"
+# ── Installation finden ──────────────────────────────────────────────────────
+APP_DIR="$(cd "$(dirname "$SCRIPT")" && pwd)"
+ENV_FILE="$APP_DIR/.env"
+STATE_FILE="$APP_DIR/.deployed-commit"
+[[ -d "$APP_DIR/.git" ]] || { err "$APP_DIR ist kein Git-Checkout. Erst setup.sh ausführen."; exit 1; }
+[[ -f "$ENV_FILE" ]] || { err "Keine .env in $APP_DIR – erst setup.sh ausführen."; exit 1; }
+APP_USER="$(stat -c %U "$APP_DIR")"
+[[ "$APP_USER" != "root" ]] || { err "$APP_DIR gehört root – wurde setup.sh ausgeführt?"; exit 1; }
+APP_HOME="$(getent passwd "$APP_USER" | cut -d: -f6)"
+as_app() { (cd "$APP_DIR" && runuser -u "$APP_USER" -- env HOME="$APP_HOME" "$@"); }
 
-# Prüfen ob Token bereits als Umgebungsvariable gesetzt
-if [ -n "$GITHUB_TOKEN" ]; then
-    echo -e "  ${GREEN}✓ GitHub Token aus Umgebungsvariable gelesen${NC}"
-else
-    echo -e "  ${CYAN}Das Repository ist privat – GitHub Personal Access Token benötigt.${NC}"
-    echo -e "  ${CYAN}Token erstellen: https://github.com/settings/tokens${NC}"
-    echo -e "  ${CYAN}Benötigte Berechtigung: ${BOLD}repo${NC} (read)${NC}"
-    echo ""
-    read -s -p "  GitHub Token eingeben: " GITHUB_TOKEN
-    echo ""
-    if [ -z "$GITHUB_TOKEN" ]; then
-        echo -e "  ${RED}✗ Kein Token eingegeben – Abbruch.${NC}"
-        exit 1
-    fi
+get_env() { grep -E "^$1=" "$ENV_FILE" | head -n1 | cut -d= -f2- || true; }
+PORT="$(get_env PORT)"; PORT="${PORT:-$DEFAULT_PORT}"
+
+echo -e "\n${BOLD}${CYAN}$APP_TITLE – Deploy${NC}"
+echo "  Verzeichnis: $APP_DIR   Service: $SERVICE   Branch: $BRANCH"
+
+# ── 1. Neue Version prüfen ───────────────────────────────────────────────────
+step "1/6  Neue Version prüfen"
+as_app git fetch --quiet origin "$BRANCH"
+OLD_SHA="$(as_app git rev-parse HEAD)"
+NEW_SHA="$(as_app git rev-parse "origin/$BRANCH")"
+DEPLOYED_SHA="$(cat "$STATE_FILE" 2>/dev/null || true)"
+if [[ "$NEW_SHA" == "$DEPLOYED_SHA" && "$FORCE" == "no" ]]; then
+    ok "Bereits aktuell (${NEW_SHA:0:7}). Mit --force trotzdem neu deployen."
+    exit 0
 fi
+info "${OLD_SHA:0:7} → ${NEW_SHA:0:7}"
 
-# Token validieren
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-    -H "Authorization: token $GITHUB_TOKEN" \
-    "https://api.github.com/repos/$GITHUB_REPO")
-
-if [ "$HTTP_STATUS" != "200" ]; then
-    echo -e "  ${RED}✗ Token ungültig oder kein Zugriff auf das Repository (HTTP $HTTP_STATUS)${NC}"
-    exit 1
-fi
-echo -e "  ${GREEN}✓ Token gültig – Zugriff auf Repository bestätigt${NC}"
-
-# Repo-URL mit Token (wird nur intern genutzt, nie geloggt)
-REPO="https://${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git"
-
-# ── 1. System-Pakete & Node.js 22 ─────────────────────────────────────────
-echo -e "\n${BOLD}[1/8] System updaten & Node.js 22 installieren...${NC}"
-apt-get update -qq
-apt-get install -y -qq curl git openssl
-
-if ! command -v node &>/dev/null || [[ $(node -v | cut -d'.' -f1 | tr -d 'v') -lt 20 ]]; then
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - &>/dev/null
-    apt-get install -y -qq nodejs
-fi
-echo -e "  ${GREEN}✓ Node.js $(node -v) bereit${NC}"
-
-# ── 2. App-User ─────────────────────────────────────────────────────────────
-echo -e "\n${BOLD}[2/8] App-User '${APP_USER}' prüfen...${NC}"
-if ! id "$APP_USER" &>/dev/null; then
-    useradd --system --shell /bin/bash --create-home "$APP_USER"
-    echo -e "  ${GREEN}✓ User erstellt${NC}"
-else
-    echo -e "  ${GREEN}✓ User existiert bereits${NC}"
-fi
-
-# ── 3. Repo klonen / updaten (Token-Auth, konfliktfrei) ─────────────────────
-echo -e "\n${BOLD}[3/8] Repository klonen / updaten...${NC}"
-git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
-
-if [ -d "$APP_DIR/.git" ]; then
-    chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
-    cd "$APP_DIR"
-    # Remote-URL mit aktuellem Token aktualisieren (falls Token sich geändert hat)
-    git remote set-url origin "$REPO"
-    # Konfliktfrei updaten – kein stash, kein merge, kein Abort
-    git fetch origin main
-    git reset --hard origin/main
-    echo -e "  ${GREEN}✓ Repository aktualisiert${NC}"
-else
-    git clone "$REPO" "$APP_DIR"
-    chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
-    echo -e "  ${GREEN}✓ Repository geklont${NC}"
-fi
-
-# Token aus Remote-URL entfernen (Sicherheit – nicht in .git/config speichern)
-cd "$APP_DIR"
-git remote set-url origin "https://github.com/${GITHUB_REPO}.git"
-echo -e "  ${GREEN}✓ Token aus Git-Config entfernt${NC}"
-
-# ── 4. .env generieren (nur wenn noch nicht vorhanden) ──────────────────────
-echo -e "\n${BOLD}[4/8] .env konfigurieren & Secrets generieren...${NC}"
-
-if [ ! -f "$APP_DIR/.env" ]; then
-    echo -e "  ${CYAN}→ Generiere kryptografische Secrets...${NC}"
-
-    ADMIN_SECRET=$(openssl rand -hex 48)
-    HMAC_SECRET=$(openssl rand -hex 48)
-    WEBHOOK_SECRET=$(openssl rand -hex 24)
-
-    # RSA-2048 Schlüsselpaar generieren
-    echo -e "  ${CYAN}→ Generiere RSA-2048 Schlüsselpaar...${NC}"
-    TEMP_KEY=$(mktemp)
-    TEMP_PUB=$(mktemp)
-    openssl genrsa -out "$TEMP_KEY" 2048 2>/dev/null
-    openssl rsa -in "$TEMP_KEY" -pubout -out "$TEMP_PUB" 2>/dev/null
-
-    # Private Key für .env inline (Newlines als \n)
-    RSA_PRIVATE_KEY_INLINE=$(awk 'NF {printf "%s\\n", $0}' "$TEMP_KEY" | sed 's/\\n$//')
-
-    # Keys als Dateien ablegen
-    cp "$TEMP_PUB" "$APP_DIR/public.pem"
-    cp "$TEMP_KEY" "$APP_DIR/private.pem"
-    chown "$APP_USER":"$APP_USER" "$APP_DIR/public.pem" "$APP_DIR/private.pem"
-    chmod 644 "$APP_DIR/public.pem"
-    chmod 600 "$APP_DIR/private.pem"
-    rm -f "$TEMP_KEY" "$TEMP_PUB"
-
-    # DB-Passwort abfragen
-    echo ""
-    echo -e "  ${BOLD}MySQL Zugangsdaten für Netcup:${NC}"
-    echo -e "  ${CYAN}  Host: mysql2ebc.netcup.net | DB: k220163_opa | User: k220163_opa${NC}"
-    echo ""
-    read -s -p "  MySQL Passwort eingeben: " DB_PASS_INPUT
-    echo ""
-    if [ -z "$DB_PASS_INPUT" ]; then
-        echo -e "  ${YELLOW}⚠️  Kein Passwort eingegeben – bitte später in .env nachtragen!${NC}"
-        DB_PASS_INPUT="BITTE_DB_PASSWORT_EINTRAGEN"
+# ── 2. Backup ────────────────────────────────────────────────────────────────
+step "2/6  Backup"
+BACKUP_ROOT="$APP_DIR/deploy-backups"
+BACKUP_DIR="$BACKUP_ROOT/$(date +%Y%m%d-%H%M%S)"
+if [[ "$DO_BACKUP" == "yes" ]]; then
+    mkdir -p "$BACKUP_DIR"
+    chown "$APP_USER:$APP_USER" "$BACKUP_ROOT" "$BACKUP_DIR"
+    DB_PATH_VALUE="$(get_env DB_PATH)"; DB_PATH_VALUE="${DB_PATH_VALUE:-$DB_DEFAULT}"
+    [[ "$DB_PATH_VALUE" = /* ]] && DB_FILE="$DB_PATH_VALUE" || DB_FILE="$APP_DIR/$DB_PATH_VALUE"
+    if [[ -f "$DB_FILE" ]]; then
+        # SQLite-Online-Backup (konsistent, auch bei laufendem Service)
+        if ! as_app node -e '
+            const Database = require("better-sqlite3");
+            const db = new Database(process.argv[1], { readonly: true });
+            db.backup(process.argv[2]).then(() => db.close()).catch((e) => { console.error(e.message); process.exit(1); });
+        ' "$DB_FILE" "$BACKUP_DIR/$(basename "$DB_FILE")" 2>/dev/null; then
+            cp -a "$DB_FILE" "$BACKUP_DIR/"
+            warn "Online-Backup nicht möglich – Datei kopiert"
+        fi
+        ok "Datenbank gesichert"
     else
-        echo -e "  ${GREEN}✓ DB-Passwort gesetzt${NC}"
+        info "Noch keine Datenbank ($DB_FILE) – nichts zu sichern"
     fi
-
-    # .env schreiben
-    cat > "$APP_DIR/.env" <<EOF
-PORT=${PORT}
-
-# Admin JWT Secret (automatisch generiert)
-ADMIN_SECRET=${ADMIN_SECRET}
-
-# HMAC Signing Secret (automatisch generiert)
-HMAC_SECRET=${HMAC_SECRET}
-
-# RSA-2048 Private Key fuer signierte License Tokens (RS256)
-RSA_PRIVATE_KEY="${RSA_PRIVATE_KEY_INLINE}"
-
-# MySQL Datenbank (Netcup)
-DB_HOST=mysql2ebc.netcup.net
-DB_PORT=3306
-DB_NAME=k220163_opa
-DB_USER=k220163_opa
-DB_PASS=${DB_PASS_INPUT}
-
-# CORS: erlaubte Origins (kommagetrennt, leer = alle erlaubt)
-CORS_ORIGINS=
-
-# SMTP Konfiguration (optional, kann auch im Admin-Panel gesetzt werden)
-SMTP_HOST=
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=
-SMTP_PASS=
-SMTP_FROM=
-
-# Webhook (optional)
-WEBHOOK_URL=
-WEBHOOK_SECRET=${WEBHOOK_SECRET}
-EOF
-
-    chown "$APP_USER":"$APP_USER" "$APP_DIR/.env"
-    chmod 600 "$APP_DIR/.env"
-
-    echo -e "  ${GREEN}✓ .env mit allen Secrets erstellt${NC}"
-    echo -e "  ${GREEN}✓ RSA Private Key: $APP_DIR/private.pem${NC}"
-    echo -e "  ${GREEN}✓ RSA Public Key:  $APP_DIR/public.pem ${CYAN}(für CMS)${NC}"
+    cp -a "$ENV_FILE" "$BACKUP_DIR/.env"
+    for f in "${EXTRA_BACKUP_FILES[@]}"; do [[ -f "$APP_DIR/$f" ]] && cp -a "$APP_DIR/$f" "$BACKUP_DIR/"; done
+    # Lokale Änderungen an versionierten Dateien würden überschrieben – vorher sichern
+    if [[ -n "$(as_app git status --porcelain --untracked-files=no)" ]]; then
+        as_app git diff HEAD > "$BACKUP_DIR/local-changes.patch" || true
+        warn "Lokale Code-Änderungen werden überschrieben (Sicherung: $BACKUP_DIR/local-changes.patch)"
+    fi
+    chmod -R go-rwx "$BACKUP_DIR"
+    chown -R "$APP_USER:$APP_USER" "$BACKUP_ROOT"
+    # Nur die letzten 10 Backups behalten
+    ls -1dt "$BACKUP_ROOT"/*/ 2>/dev/null | tail -n +11 | xargs -r rm -rf
+    ok "Backup in $BACKUP_DIR"
 else
-    echo -e "  ${GREEN}✓ .env existiert bereits – wird nicht überschrieben${NC}"
+    warn "Backup übersprungen (--no-backup)"
 fi
 
-# ── 5. npm install ─────────────────────────────────────────────────────────────
-echo -e "\n${BOLD}[5/8] Dependencies installieren...${NC}"
-cd "$APP_DIR"
-sudo -u "$APP_USER" npm install --omit=dev --silent
-echo -e "  ${GREEN}✓ Dependencies installiert${NC}"
+# ── Update-/Rollback-Funktionen ──────────────────────────────────────────────
+# Kein "set -e"-Schutz, wenn per "||" aufgerufen – daher explizit "|| return 1"
+install_and_build() {
+    as_app npm ci --omit=dev --no-audit --no-fund --loglevel=error || return 1
+    as_app npm --prefix web ci --no-audit --no-fund --loglevel=error || return 1
+    as_app npm --prefix web run build --silent || return 1
+}
+wait_healthy() {
+    local i
+    for i in $(seq 1 30); do
+        curl -fs -o /dev/null "http://127.0.0.1:$PORT$HEALTH_PATH" && return 0
+        sleep 2
+    done
+    return 1
+}
 
-# ── 6. Datenbank-Schema + Migration ──────────────────────────────────────────
-echo -e "\n${BOLD}[6/8] Datenbank-Schema & Migration...${NC}"
-cd "$APP_DIR"
-sudo -u "$APP_USER" node migrate.js
+# ── 3. Update ────────────────────────────────────────────────────────────────
+step "3/6  Service stoppen & Code aktualisieren"
+systemctl stop "$SERVICE" 2>/dev/null || true
+as_app git checkout --quiet --force -B "$BRANCH" "origin/$BRANCH"
+ok "Code auf ${NEW_SHA:0:7}"
 
-# ── 7. Systemd Service ─────────────────────────────────────────────────────────
-echo -e "\n${BOLD}[7/8] Systemd Service einrichten...${NC}"
-cat > /etc/systemd/system/${SERVICE_NAME}.service <<EOF
-[Unit]
-Description=OPA! Santorini License Server
-After=network.target
+step "4/6  Abhängigkeiten & Frontend (dauert ein paar Minuten)"
+FAILED="no"
+install_and_build || FAILED="yes"
 
-[Service]
-Type=simple
-User=${APP_USER}
-WorkingDirectory=${APP_DIR}
-EnvironmentFile=${APP_DIR}/.env
-ExecStart=/usr/bin/node server.js
-Restart=always
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=${SERVICE_NAME}
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable "$SERVICE_NAME"
-systemctl restart "$SERVICE_NAME"
-
-sleep 2
-if systemctl is-active --quiet "$SERVICE_NAME"; then
-    echo -e "  ${GREEN}✓ Service läuft & Autostart aktiviert${NC}"
-else
-    echo -e "  ${RED}✗ Service hat möglicherweise einen Fehler:${NC}"
-    journalctl -u "$SERVICE_NAME" -n 20 --no-pager
+step "5/6  Service starten"
+if [[ "$FAILED" == "no" ]]; then
+    systemctl start "$SERVICE"
+    wait_healthy || FAILED="yes"
 fi
 
-# ── 8. Zusammenfassung ─────────────────────────────────────────────────────────
-echo -e "\n${BOLD}[8/8] Abschluss...${NC}"
-echo -e "  ${CYAN}→ Admin wird durch migrate.js erstellt (admin / admin123)${NC}"
-echo -e "  ${RED}❗ Bitte sofort Admin-Passwort ändern!${NC}"
+# ── Rollback bei Fehler ──────────────────────────────────────────────────────
+if [[ "$FAILED" == "yes" ]]; then
+    err "Update fehlgeschlagen. Letzte Logzeilen:"
+    journalctl -u "$SERVICE" -n 25 --no-pager || true
+    warn "Rolle auf ${OLD_SHA:0:7} zurück …"
+    systemctl stop "$SERVICE" 2>/dev/null || true
+    as_app git checkout --quiet --force -B "$BRANCH" "$OLD_SHA"
+    install_and_build || true
+    systemctl start "$SERVICE"
+    if wait_healthy; then
+        warn "Alte Version läuft wieder. Fehler beheben und deploy.sh erneut ausführen."
+    else
+        err "Auch die alte Version startet nicht – bitte Logs prüfen: journalctl -u $SERVICE -n 100"
+    fi
+    [[ "$DO_BACKUP" == "yes" ]] && warn "Falls Migrationen gelaufen sind: Datenbank-Backup liegt in $BACKUP_DIR"
+    exit 1
+fi
 
+# ── 6. Abschluss ─────────────────────────────────────────────────────────────
+step "6/6  Abschluss"
+echo "$NEW_SHA" > "$STATE_FILE"
+chown "$APP_USER:$APP_USER" "$STATE_FILE"
+ok "Server läuft und antwortet auf $HEALTH_PATH"
+if [[ "$OLD_SHA" != "$NEW_SHA" ]]; then
+    echo -e "\n${BOLD}Änderungen:${NC}"
+    as_app git log --oneline --no-decorate "$OLD_SHA..$NEW_SHA" 2>/dev/null | head -n 15 | sed 's/^/  /' || true
+fi
+echo -e "\n${BOLD}${GREEN}✅ Update auf ${NEW_SHA:0:7} abgeschlossen.${NC}\n"
+echo "  Logs:    journalctl -fu $SERVICE"
+echo "  Status:  systemctl status $SERVICE"
 echo ""
-echo -e "${CYAN}$(printf '═%.0s' {1..55})${NC}"
-echo -e "${GREEN}${BOLD}✅ Deploy abgeschlossen!${NC}"
-echo ""
-echo -e "  🏛️  Server läuft auf Port:    ${YELLOW}${PORT}${NC}"
-echo -e "  🔑 RSA Public Key für CMS: ${YELLOW}cat $APP_DIR/public.pem${NC}"
-echo -e "  📝 Logs:                     ${YELLOW}journalctl -fu ${SERVICE_NAME}${NC}"
-echo -e "  📊 Status:                   ${YELLOW}systemctl status ${SERVICE_NAME}${NC}"
-echo ""
-echo -e "  ${BOLD}${YELLOW}Nächste Schritte:${NC}"
-echo -e "  ${YELLOW}1. Firewall:           ufw allow ${PORT}${NC}"
-echo -e "  ${YELLOW}2. Admin-Passwort ändern (Standard: admin / admin123)${NC}"
-echo -e "  ${YELLOW}3. CMS Public Key:     cat $APP_DIR/public.pem${NC}"
-echo -e "  ${YELLOW}4. CORS in .env:       nano $APP_DIR/.env${NC}"
-echo ""
+}
+
+main "$@"; exit $?
